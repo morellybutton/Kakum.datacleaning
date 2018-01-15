@@ -1,8 +1,9 @@
 #clean and export forest plot datasheets
 library(stringr)
-require(data.table)
-library(plyr)
-library(xlsx)
+#require(data.table)
+#library(plyr)
+library(gdata)
+library(tidyverse)
 
 setwd("/Volumes/ELDS/ECOLIMITS/Ghana/")
 site="Kakum"
@@ -32,9 +33,9 @@ for (i in 1:length(snames)){
   #load plot dump (if applicable) to get tree IDs
   pcode<-as.character(plts[plts$name2==paste0(snames[i]," FP"),"PlotCode"])
   pcode<-gsub("-","_",pcode)
-  dump<-read.xlsx(paste0(getwd(),"/",site,"/AGB/ForestPlots/",pcode,"_PlotDump.xlsx"), sheetName="Plot Dump", header=TRUE,startRow=2)
+  dump<-read.xls(paste0(getwd(),"/",site,"/AGB/ForestPlots/",pcode,"_PlotDump.xlsx"), sheet="Plot Dump")
   
-  data<-read.xlsx(paste0(getwd(),"/",site,"/AGB/ForestPlots_LS.xlsx"), header=TRUE, sheetName=snames[i])
+  data<-read.xls(paste0(getwd(),"/",site,"/AGB/ForestPlots_LS.xlsx"), sheet=snames[i])
   #remove factors
   data<-data.frame(lapply(data, as.character), stringsAsFactors=FALSE)
   #add column names
@@ -63,9 +64,9 @@ for (i in 1:length(snames)){
   h<-do.call(rbind,strsplit(data$Height,","))
   if(ncol(h)==2) p$THeight<-as.numeric(gsub(" ","",h[,2])) else p$THeight<-as.numeric(h)
   
-  #pull out flag values for latest census
-  flag<-data[,grep("Tree codes",colnames(data))]
-  flag<-flag[,str_split_fixed(colnames(data[,grep("Tree codes",colnames(data))]),"Tree codes",2)[,2]==censusnum]
+  #pull out flag values for all censuses
+  flag.all<-data[,grep("Tree codes",colnames(data))]
+  flag<-flag.all[,str_split_fixed(colnames(data[,grep("Tree codes",colnames(data))]),"Tree codes",2)[,2]==censusnum]
   
   #Flag 1 Alive status, if dead add "0" do for max Tree codes number
   p$Flag1<-as.character(data[,max(grep("Tree codes",colnames(data)))])
@@ -88,12 +89,17 @@ for (i in 1:length(snames)){
   p<-p[,!is.na(p[1,])]
   #add Flag5 for mode of height measurement, 4 refers to laser hypsometer
   p[!is.na(p$THeight),"Flag5"]<-4
+  #add Flag1.1 if tree died in previous census
+  p$Flag1.1 <-as.character(data[,max(grep("Tree codes",colnames(data)))-1])
+  #add in dead trees
+  tmp1<-grep("0",p$Flag1.1)
+  p[tmp1,"Flag1.1"]<-0
   
   p$CensusNotes<-data$Notes
   
   #write csv of cleaned data
   write.csv(p,paste0(getwd(),"/",site,"/AGB/ForestPlots/",snames[i],"_forest.csv"))
-  write.xlsx(p,paste0(getwd(),"/",site,"/AGB/ForestPlots/",snames[i],"FP_c1.",censusnum,".xlsx"),sheetName = paste0("census",censusnum),col.names=T,append=F)
+  #write.xls(p,paste0(getwd(),"/",site,"/AGB/ForestPlots/",snames[i],"FP_c1.",censusnum,".xlsx"),sheetName = paste0("census",censusnum),col.names=T,append=F)
   rm(p,h,data)
 }
 
@@ -125,8 +131,10 @@ for (i in 1:length(snames)){
   data[data$Height==""&!is.na(data$Height),"Height"]<-NA
   h<-do.call(rbind,strsplit(data$Height,","))
   if(ncol(h)==2) p$THeight<-as.numeric(gsub(" ","",h[,2])) else p$THeight<-as.numeric(h)
-  #pull out flag values for latest census
-  flag<-data[,max(grep("Tree codes",colnames(data)))]
+  #pull out flag values for all censuses
+  flag.all<-data[,grep("Tree codes",colnames(data))]
+  flag<-flag.all[,str_split_fixed(colnames(data[,grep("Tree codes",colnames(data))]),"Tree codes",2)[,2]==censusnum]
+  
   #Flag 1 Alive status, if dead add "0" do for max Tree codes number
   p$Flag1<-as.character(data[,max(grep("Tree codes",colnames(data)))])
   #Flag 2 Mode of Death, if alive enter "1"
@@ -144,9 +152,14 @@ for (i in 1:length(snames)){
   p[tmp1,"Flag3"]<-4
   #add Flag 4, Data Manipulation, 0 means normal measurement
   if(is.null(data$Flag4)) p$Flag4<-0 else p$Flag4<-data$Flag4
- 
+  #add Flag1.1 if tree died in previous census
+  p$Flag1.1 <-as.character(data[,max(grep("Tree codes",colnames(data)))-1])
+  #add in dead trees
+  tmp1<-grep("0",p$Flag1.1)
+  p[tmp1,"Flag1.1"]<-0
+  
   #remove NA
-  p<-p[,!is.na(p[1,])]
+  #p<-p[,!is.na(p[1,])]
   
   p$CensusNotes<-data$Notes
   #write csv of cleaned data
@@ -190,8 +203,8 @@ for (i in 1:nrow(plts1)){
   if(ncol(h)==2) p$THeight<-as.numeric(gsub(" ","",h[,2])) else p$THeight<-as.numeric(h)
   
   #pull out flag values for latest census
-  flag<-data[,grep("Tree codes",colnames(data))]
-  flag<-flag[,str_split_fixed(colnames(data[,grep("Tree codes",colnames(data))]),"Tree codes",2)[,2]==censusnum]
+  flag.all<-data[,grep("Tree codes",colnames(data))]
+  flag<-flag.all[,str_split_fixed(colnames(data[,grep("Tree codes",colnames(data))]),"Tree codes",2)[,2]==censusnum]
   
   #Flag 1 Alive status, if dead add "0" do for max Tree codes number
   p$Flag1<-as.character(data[,max(grep("Tree codes",colnames(data)))])
@@ -214,6 +227,11 @@ for (i in 1:nrow(plts1)){
   #p<-p[,!is.na(p[1,])]
   #add Flag5 for mode of height measurement, 4 refers to laser hypsometer
   p[!is.na(p$THeight),"Flag5"]<-4
+  #add Flag1.1 if tree died in previous census
+  p$Flag1.1 <-as.character(data[,max(grep("Tree codes",colnames(data)))-1])
+  #add in dead trees
+  tmp1<-grep("0",p$Flag1.1)
+  p[tmp1,"Flag1.1"]<-0
   
   p$CensusNotes<-data$Notes
   
@@ -225,7 +243,7 @@ for (i in 1:nrow(plts1)){
  
   #write csv of cleaned data
   write.csv(p,paste0(getwd(),"/",site,"/AGB/ForestPlots/",gsub(" ","",plts1$name3[i]),"_LS.csv")) 
-  write.xlsx(p,paste0(getwd(),"/",site,"/AGB/ForestPlots/",gsub(" ","",plts1$name3[i]),"_c1.",censusnum,".xlsx"),sheetName = paste0("census",censusnum),col.names=T,append=F)
+  #write.xlsx(p,paste0(getwd(),"/",site,"/AGB/ForestPlots/",gsub(" ","",plts1$name3[i]),"_c1.",censusnum,".xlsx"),sheetName = paste0("census",censusnum),col.names=T,append=F)
   #write.csv(test,paste0(getwd(),"/",site,"/AGB/test_spp2.csv")) 
 }
 
@@ -240,8 +258,9 @@ h.ght<-coefficients(lm(ht$h~ht$dbh))
 write.csv(h.ght,paste0(getwd(),"/",site,"/AGB/ForestPlots/cocoa_height.csv"))
 #save dates
 d.ts<-do.call(rbind.data.frame,dates)
-d.ts<-d.ts[,2:4]
+#d.ts<-d.ts[,2:4]
 colnames(d.ts)<-c("date","plotcode","plotname")
+d.ts$date<-as.Date(d.ts$date,format="%d/%m/%y")
 write.csv(d.ts,paste0(getwd(),"/",site,"/AGB/ForestPlots/census.dates.csv"))
 
 #do for Cocoa census of small trees
@@ -272,8 +291,11 @@ for(i in 1:nrow(plts1)){
   data[data$Height==""&!is.na(data$Height),"Height"]<-NA
   h<-do.call(rbind,strsplit(data$Height,","))
   if(ncol(h)==2) p$THeight<-as.numeric(gsub(" ","",h[,2])) else p$THeight<-as.numeric(h)
+  
   #pull out flag values for latest census
-  flag<-data[,max(grep("Tree codes",colnames(data)))]
+  flag.all<-data[,grep("Tree codes",colnames(data))]
+  flag<-flag.all[,str_split_fixed(colnames(data[,grep("Tree codes",colnames(data))]),"Tree codes",2)[,2]==censusnum]
+  
   #Flag 1 Alive status, if dead add "0" do for max Tree codes number
   p$Flag1<-as.character(data[,max(grep("Tree codes",colnames(data)))])
   #Flag 2 Mode of Death, if alive enter "1"
@@ -292,8 +314,14 @@ for(i in 1:nrow(plts1)){
   #add Flag 4, Data Manipulation, 0 means normal measurement
   if(is.null(data$Flag4)) p$Flag4<-0 else p$Flag4<-data$Flag4
   
+  #add Flag1.1 if tree died in previous census
+  p$Flag1.1 <-as.character(data[,max(grep("Tree codes",colnames(data)))-1])
+  #add in dead trees
+  tmp1<-grep("0",p$Flag1.1)
+  p[tmp1,"Flag1.1"]<-0
+  
   #remove NA
-  p<-p[,!is.na(p[1,])]
+  #p<-p[,!is.na(p[1,])]
   
   p$CensusNotes<-data$Notes
   #write csv of cleaned data
