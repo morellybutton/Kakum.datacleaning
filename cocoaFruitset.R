@@ -7,7 +7,7 @@ library(ggplot2)
 
 setwd("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/Fruitset")
 trans<-c("AB","HM","KA")
-year<-c("2014","2015","2016")
+year<-c("2014","2015","2016","2017")
 ns<-read.csv("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/plots.csv")
 
 final<-list()
@@ -15,6 +15,8 @@ for(i in 1:length(trans)){
   final.1<-list()
   for(y in 1:length(year)){
     dataF<-read.xls(paste0(getwd(),"/FruitSet_",year[y],"_rawdata_revised.xlsx"), sheet=trans[i])
+    #remove NA columns
+    dataF<-dataF[,!is.na(dataF[1,])]
     #find the dates measured for each transect
     d<-agrep("Date: ",as.character(dataF[,5]))
     #add length of datasheet
@@ -22,7 +24,8 @@ for(i in 1:length(trans)){
     final.2<-list()
     for(j in 1:(length(d)-1)){
       dF<-dataF[d[j]:(d[j+1]),]
-      dt<-as.Date(dataF[d[j],6])
+      dt<-as.Date(dataF[d[j],6],format="%d/%m/%Y")
+      if(is.na(dt)) dt<-as.Date(dataF[d[j],6])
       s<-grep("Plot",as.character(dF[,1]))
       #find end of datasheet
       e<-grep("Fruit",as.character(dF[,1]))
