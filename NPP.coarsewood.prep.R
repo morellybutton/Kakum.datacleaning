@@ -21,7 +21,7 @@ require(gdata)
 require(lubridate)
 library(tidyverse)
 
-for(i in 1:length(plts)){
+for(i in 2:length(plts)){
   dataw<-read.xls(paste0(getwd(),"/Combo_plotlevel.xlsx"),sheet=plts[i])
   dataw<-dataw[dataw$X!=""&dataw$X!="Transect",]
   dataw<-data_frame(no=c(1:nrow(dataw)),date=as.Date(dataw$Ground.Coarse.Litter.Mass....2.cm.Diameter.),transect=as.character(dataw$X),d1=as.numeric(as.character(dataw$X.1)),d2=as.numeric(as.character(dataw$X.2)),d3=as.numeric(as.character(dataw$X.3)),avd=as.numeric(as.character(dataw$X.4)),
@@ -71,7 +71,8 @@ for(i in 1:length(plts)){
   w<-left_join(w,tmp %>% select(diam_cat,decomp_cat,month,density), by=c("diam_cat","decomp_cat","month"))
   w<- w %>% group_by(date,decomp_cat,diam_cat) %>% mutate(density=sum(density.x,density.y,na.rm=T))
   
-  w2<- w %>% group_by(decomp_cat,diam_cat) %>% summarise(m.density=mean(density.y,na.rm=T))
+  w2<- w %>% group_by(decomp_cat,diam_cat) %>% summarise(m.density=mean(density,na.rm=T))
+  w3 <- w2 %>% group_by(decomp_cat)  %>% summarise(m.density=mean(m.density,na.rm=T))
   
   w<-left_join(w,w2, by=c("decomp_cat","diam_cat"))
   w<-w %>% group_by(date,decomp_cat,diam_cat) %>% mutate(density=replace(density,density==0,m.density[density==0])) %>% 
@@ -80,10 +81,18 @@ for(i in 1:length(plts)){
   #how to join WITHOUT adding rows....?!!!!
   dataw <- left_join(dataw,w %>% select(weight,weight.kg),by="weight")
   dataw <- left_join(dataw,w %>% select(date,decomp_cat,diam_cat,density), by=c("date","decomp_cat","diam_cat"))
-  #dataw <- dataw %>% mutate(density=replace(density,is.na(density),m.density[is.na(density)]))
-  
+  #
   #fill in missing density values
   dataw<-left_join(dataw,w2,by=c("decomp_cat","diam_cat"))
+  dataw <- dataw %>% mutate(density=replace(density,is.na(density),m.density[is.na(density)]))
+  
+  #fill in missing density values, if still missing by diam_cat
+  dataw<-left_join(dataw,w3,by=c("decomp_cat"))
+  dataw <- dataw %>% mutate(density=replace(density,is.na(density),m.density.y[is.na(density)]))
+  dataw <- dataw %>% mutate(density=replace(density,density==0,m.density.y[density==0]))
+  
+  if(nrow(dataw %>% filter(is.na(density))) >0) break
+  if(nrow(dataw %>% filter(density==0))>0) break
   
   #remove duplicate rows
   dataw<- dataw %>% distinct(no,.keep_all = TRUE)

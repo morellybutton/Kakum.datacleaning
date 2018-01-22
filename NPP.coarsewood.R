@@ -225,7 +225,7 @@ for(p in 1:length(plts)){
   ## Plotroutine, triggered by argument 'plotit=T'
   if (plotit==T) {
     ## ggplot2 of root npp vs time
-    pdf(paste0(getwd(),"/CWD2_",gsub(" ","",plotname),".pdf"))
+    #pdf(paste0(getwd(),"/CWD2_",gsub(" ","",plotname),".pdf"))
     top <- max(coarsewoodNPP.monthly.ts$NPPCWDac + coarsewoodNPP.monthly.ts$NPPCWDac_se,na.rm=T)
     plot1 <- ggplot(data=coarsewoodNPP.monthly.ts[!is.na(coarsewoodNPP.monthly.ts$NPPCWDac),], aes(x=date, y=NPPCWDac, na.rm=T)) +
       geom_line(linetype='solid', colour='black', size=1) +
@@ -241,7 +241,8 @@ for(p in 1:length(plts)){
       theme(panel.border = element_rect(fill = NA, colour = "black", size = 1))+
       ggtitle(paste0("CWD for ",plotname))
     plot1
-    dev.off()
+    ggsave(paste0(getwd(),"/CWD2_",gsub(" ","",plotname),".pdf"))
+    #dev.off()
     write.csv(coarsewoodNPP.monthly.ts,paste0(getwd(),"/CWD2_",gsub(" ","",plotname),"_out.csv"))
   }
 
