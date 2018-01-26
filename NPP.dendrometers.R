@@ -68,7 +68,7 @@ for(p in 1:length(trans)){
     #remove blanks
     ds<-gsub(" ","",ds[ds!=""])
     
-    d1<-as.Date(as.character(d.ts[d.ts$plotname==plotname,"date"]),format="%d/%m/%y")
+    d1<-as.Date(as.character(d.ts[d.ts$plotname==plotname,"date"]),format="%Y-%m-%d")
     
     #load census data to get height and DBH values
     if(length(grep("FP",plotname))==0) census<-read.csv(paste0(getwd(),"/",site,"/AGB/ForestPlots/",gsub(" ","",plotname),"_LS.csv")) else census<-read.csv(paste0(getwd(),"/",site,"/AGB/ForestPlots/",trans[p],"_forest.csv"))

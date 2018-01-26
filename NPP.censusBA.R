@@ -257,34 +257,6 @@ write.csv(b.a,paste0(getwd(),"/Basalarea_spp.csv"))
 #write.xlsx(b.a[b.a$trans=="HM",],paste0(getwd(),"/TimberAnalysis.v4.xlsx"),sheetName="Ahomaho Species",append=T)
 #write.xlsx(b.a[b.a$trans=="KA",],paste0(getwd(),"/TimberAnalysis.v4.xlsx"),sheetName="Kwameamoebang Species",append=T)
 
-##go through the plots and write a .xlsx 
-#for(i in 1:nrow(plts)){
-  d<-d.f[d.f$Plot==as.character(plts$name3[i]),]
-  #sort by basal area
-  d<-d[order(-d$BA.1),]
-  d$T.vol<-NA
-  #calculate volume of large individual trees
-  for(j in 1:nrow(d)){
-    e<-d[j,]
-    tmp<-data.frame(rbind(str_split(e$T.ba.1,",")[[1]],str_split(e$H.ba.1,",")[[1]]),stringsAsFactors = F)
-    d[j,"T.vol"]<-paste(signif(as.numeric(tmp[1,])*as.numeric(tmp[2,]),digits=3),collapse=",")
-  }
-  #sum biomass
-  d["Total Shade","BM.1"]<-sum(d[d$species!="Theobroma cacao","BM.1"])
-  d["Total Shade","BM.2"]<-sum(d[d$species!="Theobroma cacao","BM.2"],na.rm=T)
-  #sum number of shade trees
-  d["Total Shade","S.1"]<-floor(sum(d[,"S.1"],na.rm=T)/0.36)
-  d["Total Shade","S.2"]<-floor(sum(d[,"S.2"],na.rm=T)/0.36)
-  
-  
-  #recombine columns
-  f<-data.frame(cbind(as.character(d$species),signif(d$BA.1,3),signif(d$BA.2,3),signif(d$BM.1,3),signif(d$BM.2,3),d$N.1,d$N.2,d$n.1,d$n.2,d$S.1,d$S.2,as.character(d$T.1),as.character(d$T.2),d$Timber,as.character(d$T.ba.1),as.character(d$H.ba.1),as.character(d$T.vol)),stringsAsFactors = F)
-  colnames(f)<-c("Tree species","Basal Area Yr1 (m2/ha)","Basal Area Yr2 (m2/ha)","Biomass Yr1 (Mg/ha)","Biomass Yr2 (Mg/ha)","No of Trees Yr1 (>10 cm DBH)","No of Trees Yr2 (>10 cm DBH)","No of Trees Yr1 (2-10 cm DBH)","No of Trees Yr2 (2-10 cm DBH)","No of Shade Trees Yr1 (>12 m ht)","No of Shade Trees Yr2 (>12 m ht)","DBH of Trees >30 cm Yr1","DBH of Trees >30 cm Yr2","Forestry Commission Timber Code","Basal Area of Trees >30 cm Yr1","Height of Trees >30 cm Yr1","Huber Volume of Trees >30 cm Yr1")
-  f[nrow(f),"Tree species"]<-"Shade Tree Total"
-  write.xlsx(f,paste0(getwd(),"/TimberAnalysis.v4.xlsx"),sheetName=as.character(plts$name3[i]),append=T)
-  rm(f,d)
-}
-
 #calculate diversity of plot by basal area, using Shannon's index given by: -sum(ln(propi)^propi) and evenness given by index/ln(spp)
 #where propi is the proportional abundance of a species and spp is number of species
 dump <- d.f[grep("FP",d.f$Plot,invert=T),]  %>% group_by(Plot) %>% 

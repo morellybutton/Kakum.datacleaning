@@ -63,13 +63,13 @@ for(p in 1:length(trans)){
     # requires two .csv files: 
     if(length(grep("FP",plotname))==0) census<- data.frame(lapply(read.csv(paste0(getwd(),"/",site,"/AGB/ForestPlots/",gsub(" ","",plotname),"_LS.csv")),as.character),stringsAsFactors=F) else census<-read.csv(paste0(getwd(),"/",site,"/AGB/ForestPlots/",trans[p],"_forest.csv"))
     #colnames(census)<-c("Tree.ID","Pv..Tag.No","TagNo","T1","T2","X","Y", "Family","Species", "Tree.Notes","density","WD.Type","X.1","dbh", "DBH1", "DBH2","DBH3","DBH4","POM","F1", "F2","F3","F4", "LI","CI","height_m","F5","Census.Notes","year","month","day")         
-    if(length(grep("FP",plotname))==0) colnames(census)<-c("x","subplot","x.coord","y.coord","tree_tag","orig.family","orig.species","family","species","dbh1","pom","dbh2","dbh3","height","f1","f2","f3","f4","f5","notes") else colnames(census)<-c("x","subplot","x.coord","y.coord","tree_tag","orig.family","orig.species", "treeid","family","species","dbh1","pom","dbh2","dbh3","height","f1","f2","f3","f4","f5","notes")
+    colnames(census)<-c("x","subplot","x.coord","y.coord","tree_tag","orig.family","orig.species","family","species","dbh1","pom","dbh2","dbh3","height","f1","f2","f3","f4","f5","f1.1","notes")
    
     #make tree_tag specific for plot
     census$tree_tag<-paste0(gsub(" ","",plotname),census$tree_tag)
     
     cdate<-data.frame(cendates[cendates$plotname==plotname,],stringsAsFactors = F)
-    cdate$date<-as.Date(cdate$date,format="%d/%m/%y")
+    cdate$date<-as.Date(cdate$date,format="%Y-%m-%d")
     for(n in 1:nrow(cdate)){
       cdate$census[n]<-paste0("census",n)
     }

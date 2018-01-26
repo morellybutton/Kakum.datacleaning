@@ -12,7 +12,7 @@ setwd("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/NPP/Litter Data")
 plotsize = 0.36  ### VARIABLE PLOTSIZE IS NOT YET INCLUDED: DISCUSS HOW TO INCLUDE IT.
 plotnames = c("HM FP","KA FP","KA 100 F3","KA 100 F1","KA 500 F3","KA 1K F3","HM 5K F2","HM 500 F3","HM 100 F3","HM 500 F2")
 year1=2014
-year2=2016
+year2=2017
 
 for(i in 1:length(plotnames)){
   plotname<-plotnames[i]
