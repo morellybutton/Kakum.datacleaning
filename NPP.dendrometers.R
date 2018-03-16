@@ -12,6 +12,7 @@
 
 library(gdata)
 library(lubridate)
+library(tidyverse)
 
 setwd("/Volumes/ELDS/ECOLIMITS/Ghana/")
 site="Kakum"
@@ -24,7 +25,8 @@ co.ht$plotname<-"XXX"
 co.ht$Species<-"Theobroma cacao"
 co.ht<-data.frame(cbind(co.ht$plotname,co.ht$Tag,as.character(co.ht$Species),co.ht$dbh,co.ht$THeight),stringsAsFactors=F)
 names(co.ht)<-c("plotname","TagNo","Species","dbh","height_m")
-
+#if dbh in dendro in cm, multiply by 10 to be mm
+cf=10
 #open census dates
 d.ts<-read.csv(paste0(getwd(),"/",site,"/AGB/ForestPlots/census.dates.csv"))
 
@@ -60,7 +62,7 @@ for(p in 1:length(trans)){
     
     #DF<-data.frame(plotname=character(),plot_code=character(),subplot=character(),tag=numeric(),dbh=numeric(),dendrometer_reading_mm=numeric(),year=numeric(),month=numeric(),day=numeric())
     DF<-data.frame(cbind(dF$plotname,dF$plot_code,dF$Subplot))
-    DF[,4:5]<-cbind(dF$Tag,dF$Diameter)
+    DF[,4:5]<-cbind(dF$Tag,dF$Diameter*cf)
     DF[,6:7]<-c(0,0)
     #pull out dates of dendro readings
     ind2<-grep("Growth",colnames(dF))
@@ -77,15 +79,15 @@ for(p in 1:length(trans)){
     DF[,9]<-month(d1[1])
     DF[,10]<-day(d1[1])
     allo[[k]]<-cbind(as.character(plotname),as.character(census$Tag),as.character(census$NSpecies),census[,grep("DBH",colnames(census))]/10,as.numeric(census$THeight))
-    names(DF)<-c("plotname","plot_code","subplot","tree_tag","dbh","dendrometer_reading_mm_cum","dendrometer_reading_mm","year","month","day")
-     #remove NA DBH
+    names(DF)<-c("plotname","plot_code","sub_plot","tree_tag","baseline_dbh_mm","dendrometer_reading_mm_cum","dendrometer_reading_mm","year","month","day")
+    #remove NA DBH
     census<-census[!is.na(census$DBH),]
     for(j in 1:(length(ds))){
       #d[j,"date"]<-as.Date(substr(ds[j],2,9),format="%d/%m/%y")
       d<-as.Date(substr(ds[j],2,9),format="%d/%m/%y")
       DF[(j*nrow(dF)+1):((j+1)*nrow(dF)),1:3]<-cbind(dF$plotname,dF$plot_code,dF$Subplot)
       DF[(j*nrow(dF)+1):((j+1)*nrow(dF)),4]<-dF$Tag
-      DF[(j*nrow(dF)+1):((j+1)*nrow(dF)),5]<-as.numeric(DF[((j-1)*nrow(dF)+1):(j*nrow(dF)),"dbh"])
+      DF[(j*nrow(dF)+1):((j+1)*nrow(dF)),5]<-as.numeric(DF[((j-1)*nrow(dF)+1):(j*nrow(dF)),"baseline_dbh_mm"])
       DF[(j*nrow(dF)+1):((j+1)*nrow(dF)),6]<-as.numeric(dF[,ind2[j]])*10
       if(j==1) DF[(j*nrow(dF)+1):((j+1)*nrow(dF)),7]<-as.numeric(dF[,ind2[j]])*10 else DF[(j*nrow(dF)+1):((j+1)*nrow(dF)),7]<-(as.numeric(dF[,ind2[j]])-as.numeric(dF[,ind2[j-1]]))*10
       DF[(j*nrow(dF)+1):((j+1)*nrow(dF)),8]<-year(d)
@@ -94,6 +96,26 @@ for(p in 1:length(trans)){
     }
     #colnames(dF[,(ncol(dF)-j+1):ncol(dF)])=c(paste0("date",1:j))
     #colnames(dF)<-c(colnames(dF[,1:(ncol(dF)-j)]),paste0("date",1:j))
+    #add original census year
+    DF$baseline_dbh_year<-year(min(as.Date(d.ts[d.ts$plotcode==plotcode,"date"])))
+    #add census data for each tree
+    DF$tree_height_m<-census[match(DF$tree_tag,census$Tag),"THeight"]
+    DF$tree_height_year<-year(min(as.Date(d.ts[d.ts$plotcode==plotcode,"date"])))
+    DF$pom_height_m<-census[match(DF$tree_tag,census$Tag),"POM"]/1000
+    #add living code (1=alive, 0=dead)
+    DF$mortality_code_alive_dead<-1
+    tmp<-census[census$Flag1.1==0,"Tag"]
+    if(length(tmp)>0) {for(g in 1:length(tmp)){
+      DF[DF$year==year(as.Date(d.ts[d.ts$plotcode==plotcode,"date"]))[2]&DF$tree_tag==tmp[g],"mortality_code_alive_dead"]<-0
+    }}
+    tmp<-census[census$Flag1==0,"Tag"]
+    if(length(tmp)>0) {for(g in 1:length(tmp)){
+      DF[DF$year==year(as.Date(d.ts[d.ts$plotcode==plotcode,"date"]))[3]&DF$tree_tag==tmp[g],"mortality_code_alive_dead"]<-0
+    }}
+    DF$family<-census[match(DF$tree_tag,census$Tag),"NFam"]
+    DF$genus<-str_split_fixed(as.character(census[match(DF$tree_tag,census$Tag),"NSpecies"])," ",2)[,1]
+    DF$species<-str_split_fixed(as.character(census[match(DF$tree_tag,census$Tag),"NSpecies"])," ",2)[,2]
+    DF$date<-as.Date(paste(DF$year,DF$month,"01",sep="-"),format="%Y-%m-%d")
     
     final[[k]]<-DF
   }
@@ -131,4 +153,12 @@ for(p in 1:length(trans)){
   write.csv(allob,paste0(getwd(),"/",site,"/NPP/Dendrometers/",trans[p],"_treeheights.csv"))
 }
 
-
+#add missing height values
+for(p in 1:length(trans)){
+  h.ts<-read.csv(paste0(getwd(),"/",site,"/NPP/Dendrometers/",trans[p],"_treeheights.csv"))
+  d.nds<-read.csv(paste0(getwd(),"/",site,"/NPP/Dendrometers/",trans[p],"_dendroAll_clean.csv"))
+  
+  d.nds$tree_height_m<-h.ts[match(d.nds$tree_tag,h.ts$TagNo),"height_m"]
+  
+  write.csv(d.nds,paste0(getwd(),"/",site,"/NPP/Dendrometers/",trans[p],"_dendroAll_clean.csv"))
+}

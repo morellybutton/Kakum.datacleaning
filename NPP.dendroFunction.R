@@ -4,6 +4,8 @@
 
 # dendrometers measured every 3 months
 # assumes all trees and lianas over 10 cm measured at 1.3 meters
+# generate a dbh related growth rate from dendrometers to relate to census
+# generate separate demographic function to account for mortality from the census
 
 
 library(gdata)
@@ -12,11 +14,12 @@ library(ggplot2)
 library(scales)
 library(plyr)
 library(reshape)
+library(tidyverse)
 
 #run allometric equation
 source("/Volumes/ELDS/ECOLIMITS/R_codes/HelperFunctions/allometricEquations.R")
 #run census function
-source("/Volumes/ELDS/ECOLIMITS/R_codes/Kakum.datacleaning/NPP.censusFunction.R")
+#source("/Volumes/ELDS/ECOLIMITS/R_codes/Kakum.datacleaning/NPP.censusFunction.R")
 
 setwd("/Volumes/ELDS/ECOLIMITS/Ghana/")
 site="Kakum"
@@ -44,6 +47,7 @@ for(p in 1:length(trans)){
   
   x1<-as.character(unique(dendrometer$plotname))
   
+  sf.output<-list()
   for(k in 1:length(x1)){
 
     # adjust options:
@@ -78,12 +82,15 @@ for(p in 1:length(trans)){
     dbh<-list()
     tmp<-census[,grep("dbh",colnames(census))]
     for(c in 1:ncol(tmp)){
-      dbh[[c]]<-cbind(census$tree_tag,as.character(census$species),tmp[,c],census$height,year(cdate[cdate$census==paste0("census",c),"date"]),month(cdate[cdate$census==paste0("census",c),"date"]),day(cdate[cdate$census==paste0("census",c),"date"]))
+      if(c==ncol(tmp)) dbh[[c]]<-cbind(as.character(census$tree_tag),as.character(census$species),tmp[,c],census$height,year(cdate[cdate$census==paste0("census",c),"date"]),month(cdate[cdate$census==paste0("census",c),"date"]),day(cdate[cdate$census==paste0("census",c),"date"]),as.character(census$f1)) else 
+        dbh[[c]]<-cbind(as.character(census$tree_tag),as.character(census$species),tmp[,c],census$height,year(cdate[cdate$census==paste0("census",c),"date"]),month(cdate[cdate$census==paste0("census",c),"date"]),day(cdate[cdate$census==paste0("census",c),"date"]),as.character(census$f1.1))
     }
     census<-do.call(rbind.data.frame,dbh)
-    colnames(census)<-c("tree_tag","species","dbh","height_m","year","month","day")
+    colnames(census)<-c("tree_tag","species","dbh","height_m","year","month","day","life.status")
+    census<-data.frame(sapply(census,as.character),stringsAsFactors = F)
     census$plotname<-plotname
     census$dbh<-as.numeric(as.character(census$dbh))
+    census$life.status[census$life.status!=0]<-1
     
     #add cocoa column
     census[census$species!="Theobroma cacao"&!is.na(census$species),"cocoa"]<-0
@@ -138,9 +145,9 @@ for(p in 1:length(trans)){
     
     #dend<-sqldf("SELECT dend1.*, height_m, WD, cocoa FROM Hwdens JOIN dend1 ON Hwdens.TagNo = tree_tag")
     #write.csv(dend, file="dendtest.csv")  
-    dend1$cenyear<-census_year
-    dend1$cenmonth<-month(cdate[cdate$census=="census1","date"])
-    dend1$cenday<-day(cdate[cdate$census=="census1","date"])
+    #dend1$cenyear<-census_year
+    #dend1$cenmonth<-month(cdate[cdate$census=="census1","date"])
+    #dend1$cenday<-day(cdate[cdate$census=="census1","date"])
     
     
       ## Allometric equation option. Set of allometric equations after Chave et al. 2005 and Chave et al. 2014 are defined in allometricEquations.R. Options defined here:
@@ -179,13 +186,21 @@ for(p in 1:length(trans)){
       dend1$dendrometer_reading_mm[which(dend1$dendrometer_reading_mm > 1000)] <- NaN
       
       # format dates
-      dend1$dbh_first_date    <- as.Date(paste(dend1$cenyear, dend1$cenmonth, dend1$cenday, sep="."), format="%Y.%m.%d") 
+      dend1$dbh_first_date    <- as.Date(paste(census_year, month(cdate[cdate$census=="census1","date"]), day(cdate[cdate$census=="census1","date"]), sep="."), format="%Y.%m.%d") 
       dend1$date              <- as.Date(paste(dend1$year, dend1$month, dend1$day, sep="."), format="%Y.%m.%d") 
       
       # add first dbh measurement (cm) to dendrometer measurement (cm) = thisdbh
       dend1$dendrometer_reading_mm <- as.numeric(dend1$dendrometer_reading_mm) # Ignore error message. NA introduced by coercion is ok.
-      dend1$thisdbh_cm             <- (dend1$dbh/cf*pi) + ((dend1$dendrometer_reading_mm/10)/pi)
-      # Error estimates TO DO. Error estimated as diax1er <- (diax1*pi + er)/pi in matlab code. Where diax1 <- (diameterlA[tree_ind]*pi + dendroallA[[tree_ind]]/10)/pi  
+      dend1$thisdbh_cm             <- dend1$dbh + (dend1$dendrometer_reading_mm/10)/pi
+      # Error estimates TO DO. Error estimated as diax1er <- (diax1*pi + er)/pi in matlab code. Where diax1 <- (diameterlA[tree_ind]*pi + dendroallA[[tree_ind]]/10)/pi
+      
+      #create relationship between dbh and growth rate for each monitoring period
+      sf.eqn<- dend1 %>% select(dbh_first_date,date,dendrometer_reading_mm,dbh,cocoa) %>% group_by(date,cocoa) %>% filter(dbh_first_date!=date) %>%
+        summarise(intercept=coefficients(lm(dendrometer_reading_mm/10/pi~dbh))[1],slope=coefficients(lm(dendrometer_reading_mm/10/pi~dbh))[2],r.squared=summary(lm(dendrometer_reading_mm/10/pi~dbh))$adj.r.squared)
+      
+      #write.csv(sf.eqn,"/users/alex/Documents/Research/Africa/ECOLIMITS/Codes/Kakum.datacleaning/scaling.fcn.test.csv")
+      #estimate increase in stem biomass using above relationship
+      
     
       # estimate biomass of each tree for each new thisdbh_mm
       #loop through each tree to estimate biomass (bm) and convert to above ground carbon (agC)
@@ -289,7 +304,7 @@ for(p in 1:length(trans)){
         npp_cen.cocoa[[ii]]<-as.numeric(strsplit(nppacw_cen,"xx",2)[[1]][1])
         npp_cen.shade[[ii]]<-as.numeric(strsplit(nppacw_cen,"xx",2)[[1]][2])
       }
-      
+       
       xxx <- sqldf("SELECT plotname, cocoa, census, AVG(npp_avgtrees_yr_dend) from www GROUP BY cocoa, census")
       colnames(xxx) <- c("plot_code", "cocoa","census", "nppacw_dend")
       #remove non-census data
@@ -303,6 +318,15 @@ for(p in 1:length(trans)){
         sf.coco[[ii]]  <- (xxx[xxx$cocoa==1&xxx$census==ii,"nppacw_dend"]*length(which(dend1$cocoa==1&dend1$census==ii))) / as.numeric(npp_cen.cocoa[ii])
         sf.shade[[ii]] <- (xxx[xxx$cocoa==0&xxx$census==ii,"nppacw_dend"]*length(which(dend1$cocoa==0&dend1$census==ii))) / as.numeric(npp_cen.shade[ii])
       }
+      
+      #save scaling factor of dendrometers for two censuses
+      tmp<-do.call(rbind.data.frame,sf.coco)
+      tmp1<-do.call(rbind.data.frame,sf.shade)
+      if(nrow(tmp)!=0) tmp<-cbind(tmp,tmp1) else tmp<-cbind(NA,tmp1)
+      colnames(tmp)<-c("cocoa","shade")
+      tmp$census<-1:no.yrs
+      tmp$plot<-plotname
+      sf.output[[k]]<-tmp
       
       for(ii in 1:no.yrs){
         if(length(sf.coco)>0) www[www$cocoa==1&www$census==ii,"nppacw_month.cocoa"] <- (www[www$cocoa==1&www$census==ii,"npp_avgtrees_month_dend"]*length(which(dend1$cocoa==1&dend1$census==ii)))/as.numeric(sf.coco[ii]) else www$nppacw_month.cocoa <- 0
@@ -386,6 +410,8 @@ for(p in 1:length(trans)){
     
     #}
   }
+  sf.output1<-do.call(rbind.data.frame,sf.output)
+  write.csv(sf.output1,paste0(getwd(),"/",site,"/NPP/Dendrometers/DENDRO_correctionfactors.",trans[p],".csv"))
 }
 
 

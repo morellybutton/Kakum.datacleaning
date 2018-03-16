@@ -21,7 +21,7 @@ require(gdata)
 require(lubridate)
 library(tidyverse)
 
-for(i in 2:length(plts)){
+for(i in 1:length(plts)){
   dataw<-read.xls(paste0(getwd(),"/Combo_plotlevel.xlsx"),sheet=plts[i])
   dataw<-dataw[dataw$X!=""&dataw$X!="Transect",]
   dataw<-data_frame(no=c(1:nrow(dataw)),date=as.Date(dataw$Ground.Coarse.Litter.Mass....2.cm.Diameter.),transect=as.character(dataw$X),d1=as.numeric(as.character(dataw$X.1)),d2=as.numeric(as.character(dataw$X.2)),d3=as.numeric(as.character(dataw$X.3)),avd=as.numeric(as.character(dataw$X.4)),
