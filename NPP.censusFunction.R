@@ -1,188 +1,237 @@
-# Written by: Cecile Girardin July 2014
+##############################################################################################
+### NPPdendrometers FOR Alex's Ghana plots. 
+##############################################################################################
+#--- NOTES ----------------------------------------------------------------------------------#
+# ! EACH PLOT REQUIRES EXTENSIVE CHECKING TO ENSURE THE CALCULATIONS ARE WORKING CORRECTLY ! #
+#DO:                                                  
 
-## This script estimates largeTreeNPP annual NPP values based on census data
-# The monthly values you get from this code are plot-level values, as all the trees in the plot are censused. 
-# Once you sum all monthly values from this, you get the annual value for the plot. 
-# That is the most reliable annual value. 
-# We then use this to estimate a scaling factor for the monthly dendrometer data (NPPcensus ha-1 yr-1 / NPPdend ha-1 yr-1).
+library(tidyverse); library(lubridate)
+source("/users/alex/Documents/Research/Africa/ECOLIMITS/Codes/Kakum.datacleaning/DendroFunctions.R"); 
 
-# requires one .csv file: 
-# census   <- read.csv() 
+trans=c("HM","KA")
+#load plotdata
+plts<-read.csv("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/plots.csv")
 
-## column names required for this function:
-#plot_code
-#tree_tag
-#dbh
-#height_m
-#density
-#year
-#month
-#day
 
-NPPacw_census <- function(census, plotname, census1_year="Default", census2_year="Default", allometric_option="Default", height_correction_option="Default") {
+for(p in 1:length(trans)){
+  dendrometer <- read_csv(paste0("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/NPP/Dendrometers/",trans[p],"_dendroAll_clean.csv"))
+  x1<-as.character(unique(dendrometer$plotname))
   
-  # load libraries
-  library(sqldf)
-  
-  ## Set of allometric equations after Chave et al. 2005 and Chave et al. 2014 are defined in allometricEquations.R. Options defined here:
-  if (allometric_option == 2 | allometric_option == "dry") {
-    allometrix <- 2
-    print("dry equation  is used for estimating AGB, model I.3 (see Chave et al., 2005)")
-  } else if (allometric_option == 3 | allometric_option == "moist" | allometric_option == "Default" | allometric_option == 1) {
-    allometrix <- 3
-    print("moist equation  is used for estimating AGB, model I.6 (see Chave et al., 2005)")
-  } else if (allometric_option == 4 | allometric_option == "wet") {
-    allometrix <- 4
-    print("wet equation  is used for estimating AGB, model I.3 (see Chave et al., 2005)")
-  } else if (allometric_option == 5 | allometric_option == "Chave2014") {
-    allometrix <- 5
-    print("pantropical equation is used for estimating AGB, model (4) (see Chave et al., 2014)")
-  } else {
-    print("Please specify a valid allometric_option!")
-    return()
-  }
-  
-  ## get data for all trees that are in the plot selected
-  cen <- subset(census, plotname==plotname)
-  
-  # Density: look up density at spp / genus level from global density db Zanne
-  
-  ## fill implausible values: this should go in data cleaning code!
-  cen$height_m[which(cen$height_m>120)] <- 120 
-  cen$height_m[which(cen$height_m<2)]   <- 2 
-  xdensity <- mean(cen$density, na.rm=T) 
-  cen$density[which(is.na(cen$density)) | which(cen$density==0)] <- xdensity 
-  
-  ## OPTIONS
-  ## Height correction options
-  if (height_correction_option == 1 | height_correction_option == "Default" ) {
-    predheight <- 1
-    print("If you have height for more than 50 trees in your plot, estimate local diameter-height relationship. If not, choose height correction option 2.")
-  } else if (height_correction_option == 2) {
-    predheight <- 2
-    print("height correction estimated as described by Feldpauch et al. (2012). Please check Feldpauch regional parameters in the code. Default is Brazilian shield.")
-  } else {
-    print("Please specify a valid height_correction_option!")
-    return()
-  }
-  
-  # dates option
-  if (census1_year == "Default" ) {
-    census1_year <- min(census$year)
-    print("Using first and last years of the dataset as census interval. Please precify census1_year and census2_year.")
-  }
-  
-  if (census2_year == "Default" ) {
-    census2_year <- max(census$year)
-    print("Using first and last years of the dataset as census interval.")
-  }
-  
-  ## Correct for missing tree heights
-  # missing height function
-  
-  h.est=function(dbh, h){
-    l      =lm(h~dbh)
-    coeffs = coefficients(l)
-    pred.h = coeffs[1] + coeffs[2]*dbh
-  }
-  
-  # Option 2: you have height for less than 50 trees in your plot. Use Fedpauch equation.
-
-  #ADD PARAMETER: Feldpauch region. 
-  
-  ## Feldpauch correction procedure for heights, diameters and densitys:
-    # Brazilian shield
-  #Bo    = 0.6373
-  #B1    = 0.4647  # E.C. Amazonia
+  for(k in 1:length(x1)){
+     
+    # --- settings -------------------------------------------------------------------------------
+    this_plot_name = x1[k]
+    this_plot_code = as.character(plts$PlotCode[plts$name2==x1[k]]); # "KAK-26"
     
-  #So1   = 0.012  # E.C. Amazonia
-  #Abar  = 20.4  # mean cenetered basal area m-2 ha-1
+    #in ha
+    if(length(grep("FP",this_plot_name))==0) plot_size = 0.36 else plot_size = 1
     
-  #n01   = 0.0034 # E.C. Amazonia
-  #Pvbar = 0.68 # mean centered precipitation coefficient of variation
-    
-  #n02   = -0.0449 # E.C. Amazonia
-  #Sdbar = 5     # mean centered dry season length no months less than 100mm
-    
-  #n03   = 0.0191  # E.C. Amazonia
-  #Tabar = 25.0  # mean centered annual averge temperature
+    #identify if need shade tree heights calculated (1=yes,0=no)
+    if(length(grep("FP",this_plot_name))==0) t_hghts=0 else t_hghts=1
     
     
-  # Define height options
-  #if (predheight == 1) {
-  #w <- which(is.na(cen$height_m))
-  #h.pred <- h.est(cen$dbh, cen$height_m)
-  #cen$height_m[w] <- h.pred[w]
-  #} else if (predheight == 2) {
-  #w <- which(is.na(cen$height_m))
-  #cen$height_m[w] <- 10^(Bo + B1*log10(cen$dbh[w]/10) + Abar*So1 + n01*Pvbar + n02*Sdbar + n03*Tabar)
-  #} 
-  
-  er = 0.1 # .1cm sampling error is trivial compared to systematic error of allometric equation. Change this see Chave et al. 2005.
-  
-  ## loop through each tree to estimate biomass (bm) and convert to above ground carbon (agC)
-   for (ii in 1:nrow(cen)) {    # this is just looping through each row.
-    dbh_tree <- as.numeric(cen$dbh[ii])
-    den_tree <- cen$density[ii]
-    h_tree   <- cen$height_m[ii]
+    # LOAD DATA ---------------------------------------------------------------------------------#
+    if(length(grep("FP",this_plot_name))==0) census_all<- read_csv(paste0("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/AGB/ForestPlots/",gsub(" ","",this_plot_name),"_LS.csv"), na=c("NA", "NaN", "")) else census_all<-read_csv(paste0("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/AGB/ForestPlots/",trans[p],"_forest.csv"), na=c("NA", "NaN", ""))
+    #census_all  <- read_csv("data/Alex_Ghana/old/KAFP_census.csv", na=c("NA", "NaN", "")) # Census_Santarem_2014_2016.csv
+    names(census_all) <- tolower(names(census_all))
+    names(census_all) <- gsub(pattern=" ",replacement="_",names(census_all))
+    census_all <- census_all %>% rename(tree_tag = tag) %>% mutate(tree_tag = as.character(tree_tag))
+    #census dates
+    census_dates<-read_csv("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/AGB/ForestPlots/Census.dates.csv")
+    census_dates <- census_dates %>% filter(plotname==this_plot_name)
+    census_dates$no<-1:nrow(census_dates)
+    zanne <- read_csv("/users/alex/Documents/Research/Africa/ECOLIMITS/Codes/Kakum.datacleaning/GlobalWoodDensityDatabase.csv")
+    spec(census_all) 
+    cheights<-read_csv("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/AGB/ForestPlots/cocoaheights.csv")
+    cheights<-cheights %>% rename(height=THeight) %>% mutate(wd=0.42)
+    # END LOAD DATA -----------------------------------------------------------------------------#
     
-    # this uses allometric equations from allometric Equations.R
-    if (allometrix == 2) {
-      bm <- Chave2005_dry(diax=dbh_tree, density=den_tree, height=h_tree)
-    } else if (allometrix == 3) {
-      bm <- Chave2005_moist(diax=dbh_tree, density=den_tree, height=h_tree)
-    } else if (allometrix == 4) {
-      bm <- Chave2005_wet(diax=dbh_tree, density=den_tree, height=h_tree)
-    } else if (allometrix == 5) {
-      bm <- Chave2014(diax=dbh_tree, density=den_tree, height=h_tree)
-    }
+    #--------------------------------------------------------------------------------------------
+    # PREPROCESS CENSUS DATA --------------------------------------------------------------------
+    # Steps: 
+    # 1) fix col names and dates
+    # 2) Get species list and wood densities from Zanne, 
+    # 3) Identify problem tree_tags
+    census <- census_all %>% filter(is.na(dbh)==F)
+    census <- census %>% mutate(height=ifelse(theight<80, theight, NA))
+    census <- census %>% rename(family=nfam, species=nspecies)
+    census$genus <- sapply(strsplit(census$species," "), "[",1)
+    census$continent <- "Africa"
+    
+    species_wd <- find_wd(census)
+    species_wd <- species_wd %>% distinct()
+    species_wd <- species_wd %>% mutate(species=paste(genus, species))
+    census <- left_join(census, species_wd %>% select(species,wd), by=c("species"))
+    census$cocoa <-0
+    census <- census %>% mutate(cocoa=replace(cocoa,genus=="Theobroma",1))
+    
+    census<-census %>% rename(flag1.2=flag1.1,flag1.3=flag1)
+    
+    #--- Estimate heights ----------------------------------------------------------------
+    #---- For Cocoa ---------------------
+    log_fit <- lm(height~log(dbh), data=cheights %>% filter(is.na(wd)==F));
+    lm_fit <- lm(height~dbh, data=cheights %>% filter(is.na(wd)==F))
+    #nl_fit <- nls(height~ b0*((1/wd)^b1)*dbh^b2, data=cheights,
+    #start = list(b0=2.643, b1=-0.3, b2=0.5))
+    #bbmle::AICctab(log_fit, lm_fit, nl_fit)
+    mod_list <- list(log_fit, lm_fit)
+    best_mod <- AIC(log_fit, lm_fit)[,2] %>% which.min()
+    
+    census[census$cocoa==1,"height_m"] <- predict(mod_list[[best_mod]], 
+                                                  newdata=data.frame(wd=census[census$cocoa==1,"wd"], dbh=census[census$cocoa==1,"dbh"]))
+    
+    cmod_height <- mod_list[[best_mod]]
+    rm(log_fit,lm_fit,mod_list,best_mod)
+    
+    #---- For Shade Trees ---------------------
+    if(t_hghts==1){
+      log_fit <- lm(height~log(dbh), data=census %>% filter(is.na(wd)==F&cocoa==0));
+      lm_fit <- lm(height~dbh, data=census %>% filter(is.na(wd)==F&cocoa==0))
+      nl_fit <- nls(height~ b0*((1/wd)^b1)*dbh^b2, data=census,
+                    start = list(b0=2.643, b1=-0.3, b2=0.5))
+      #bbmle::AICctab(log_fit, lm_fit, nl_fit)
+      mod_list <- list(log_fit, lm_fit, nl_fit)
+      best_mod <- AIC(log_fit, lm_fit, nl_fit) [,2] %>% which.min()
+      census[census$cocoa==0,"height_m"] <- predict(mod_list[[best_mod]], 
+                                                    newdata=data.frame(wd=census[census$cocoa==0,"wd"], dbh=census[census$cocoa==0,"dbh"]))
       
-    ## TO DO ## error treatment remains to be done!
-    # Unit conversions are not carried out in allometricEquations.R
-    # print(bm)
-    # print(ii)
-    cen$agC[ii] <- (bm)*(1/(2.1097*1000)) # convert kg to Mg=1/1000=10 and convert to carbon = 47.8%
+      mod_height <- mod_list[[best_mod]]
+    } else census <- census %>% mutate(height_m=replace(height_m,is.na(height_m),height[is.na(height_m)]))
+    
+    #replace estimated heights with measured heights
+    #census <- census %>% mutate(height_m=replace(height_m,!is.na(theight),theight[!is.na(theight)]))
+    #--- END estimate heights ------------------------------------------------------------
+    
+    
+    #--- Organize the dendrometer record ---------------------------------------------------
+    dat <- dendrometer %>% filter(plotname==this_plot_name)
+    #dat <- dat %>% select(-X1, -X)
+    dat$tree_tag <- as.character(dat$tree_tag)
+    vec_tags <- dat %>% 
+      group_by(tree_tag) %>% 
+      summarize(u=mean(baseline_dbh_mm, na.rm=T)) %>% 
+      arrange(desc(u)) %>% pull(tree_tag)
+    dat <- dat %>% mutate(date=lubridate::parse_date_time(date, "ymd"))
+    dat <- dat %>%  rename(baseline_dbh = baseline_dbh_mm)
+    dat$current_dbh <- est_dbh_from_dendro(dbh = dat$baseline_dbh, 
+                                           dendrometer_reading_mm = dat$dendrometer_reading_mm_cum) #!
+    tmp <- census %>% select(tree_tag, species, wd)
+    left_join(dat, tmp, by="tree_tag") %>% pull(wd) %>% hist #check WD distribution 
+    dend <- left_join(dat, tmp, by="tree_tag")
+    
+    # how well do the ratios of species between dbands and census correspond?
+    dend %>% pull(species.y) %>% table()
+    census %>% pull(species) %>% table()
+    
+    ################################################################################################
+    # --- begin new dband error catching
+    ################################################################################################
+    
+    # pass1 <- dend %>% 
+    #   group_by(tree_tag) %>% 
+    #   arrange(date) %>% 
+    #   mutate(delta1 = current_dbh-lag(current_dbh,order_by = date)) %>% 
+    #   mutate(delta1_std = as.double(delta1/current_dbh)) %>%
+    #   mutate(baseline_dbh = if_else(delta1_std < -0.0075, lag(current_dbh), as.double(baseline_dbh))) %>% 
+    #   mutate(baseline_dbh = if_else(is.na(baseline_dbh)==T, lead(baseline_dbh), baseline_dbh)) %>% 
+    #   mutate(baseline_dbh1 = cummax(baseline_dbh)) %>%
+    #   mutate(current_dbh = est_dbh_from_dendro(dbh=baseline_dbh1, dendrometer_reading_mm = dendrometer_reading_mm)) 
+    # 
+    # pass2 <- pass1 %>% 
+    #   group_by(tree_tag) %>% 
+    #   arrange(date) %>% 
+    #   mutate(delta1 = current_dbh-lag(current_dbh,order_by = date)) %>% 
+    #   mutate(delta1_std = as.double(delta1/current_dbh)) %>%
+    #   mutate(baseline_dbh = if_else(delta1_std < -0.0075, lag(current_dbh), as.double(baseline_dbh))) %>% 
+    #   mutate(baseline_dbh = if_else(is.na(baseline_dbh)==T, lead(baseline_dbh), baseline_dbh)) %>% 
+    #   mutate(baseline_dbh1 = cummax(baseline_dbh)) %>%
+    #   mutate(current_dbh = est_dbh_from_dendro(dbh=baseline_dbh1, dendrometer_reading_mm = dendrometer_reading_mm)) 
+    # 
+    # dend <- pass2
+    
+    dend$thisdbh_cm <- dend$current_dbh/10
+    dend$agC_Mg <- NA
+    dend %>% names()
+    if(t_hghts==1) {dend$height_pred <- predict(mod_height, 
+                                                newdata=data.frame(dbh=dend$current_dbh, 
+                                                                   wd=dend$wd), type="response")} else
+                                                                     dend$height_pred <- census[match(dend$tree_tag,census$tree_tag),"height_m"] %>% pull(height_m)
+    #rm(pass1, pass2)
+    ################################################################################################
+    # --- END new shit
+    ################################################################################################
+    
+    # estimate biomass of each tree for each new thisdbh_mm
+    # loop through each tree to estimate biomass (bm) and convert to above ground carbon (agC)
+    dend$bm <- Chave2014(diax=dend$current_dbh/10, wd=dend$wd, height=dend$height_pred)
+    
+    # Unit conversions 
+    dend$agC_Mg <- (dend$bm)*(1/(2.1097*1000)) # convert kg to Mg=1/1000=10 and convert to carbon = 47.8% (ADD REF!! Txx et al?)
+    
+    #----Estimate Proportion of Annual Increment from Census------#
+    cen<- census %>% select(tree_tag,family,species,genus,dbh,cocoa,height_m,wd)
+    cen$flag1<-"a"
+    cen$date<-census_dates$date[1]
+    
+    for(xts in 2:nrow(census_dates)){
+      tmp<-census %>% select(tree_tag,family,species,genus,cocoa,height_m,wd,paste0("dbh",xts),paste0("flag1.",xts))
+      colnames(tmp)<-c(colnames(tmp[,1:7]),"dbh","flag1")
+      tmp$date<-census_dates$date[xts]
+      cen<-bind_rows(cen,tmp)
+    }
+    
+    cen$bm <- Chave2014(diax=cen$dbh/10, wd=cen$wd, height=cen$height_m)
+    cen$year<-year(cen$date)
+    
+    #add if has dendrometer
+    dend_tags<-dend %>% select(tree_tag) %>% unique()
+    dend_tags$dend<-1
+    cen<-left_join(cen,dend_tags,by="tree_tag")
+    cen <- cen %>% mutate(dend=replace(dend,is.na(dend),0))
+    
+    #calculate proportion of AGB represented by dendrometers
+    out_cen <- cen %>% group_by(year,cocoa) %>% filter(flag1!=0) %>%
+      summarise(total_bm=sum(bm/plot_size,na.rm=T), total_agC=sum(bm,na.rm=T)*(1/(2.1097*1000))/plot_size)
+    out_den <- cen %>% group_by(year,cocoa,dend) %>% filter(flag1!=0&dend==1)%>%
+      summarise(dend_bm=sum(bm/plot_size,na.rm=T), dend_agC=sum(bm,na.rm=T)*(1/(2.1097*1000))/plot_size)
+    
+    out_cen<-left_join(out_cen,out_den %>% select(-dend), by=c("year","cocoa"))
+    out_cen<- out_cen %>% mutate(prop_dend=dend_bm/total_bm)
+    
+    out_cen$growth<-NA
+    out_cen$growth_agC<-NA
+    out_cen$prop_growth<- NA
+    
+    #calculate growth increment per year
+    meas<-unique(cen$year)
+    for(xts in 2:length(meas)){
+      tmp_cen <- cen %>% filter(year==meas[xts-1]|year==meas[xts]&flag1!=0&dbh>100)
+      tag.trees <- tmp_cen %>% filter(year==meas[xts]) %>% select(tree_tag) %>% unique()
+      tag.trees$present<-1
+      tmp_cen <- left_join(tmp_cen,tag.trees, by="tree_tag")
+      bm1 <- tmp_cen %>% filter(year==meas[xts-1]&present==1) %>% group_by(cocoa) %>% summarise(total=sum(bm,na.rm=T),no.trees=length(bm)) 
+      bm2 <- tmp_cen %>% filter(year==meas[xts]&present==1) %>% group_by(cocoa) %>% summarise(total=sum(bm,na.rm=T),no.trees=length(bm)) 
+      daydiff <- (tmp_cen %>% filter(year==meas[xts]) %>% select(date) %>% unique())-(tmp_cen %>% filter(year==meas[xts-1]) %>% select(date) %>% unique())
+      growth <- (bm2$total[1]-bm1$total[1])/as.numeric(daydiff)*365/plot_size
+      growth_agC <- growth*(1/(2.1097*1000))/plot_size
+      growth_c <- (bm2$total[2]-bm1$total[2])/as.numeric(daydiff)*365/plot_size
+      growth_c_agC <-growth_c*(1/(2.1097*1000))/plot_size
+      out_cen$growth[out_cen$cocoa==0&out_cen$year==meas[xts]]<-growth
+      out_cen$growth[out_cen$cocoa==1&out_cen$year==meas[xts]]<-growth_c
+      out_cen$growth_agC[out_cen$cocoa==0&out_cen$year==meas[xts]]<-growth_agC
+      out_cen$growth_agC[out_cen$cocoa==1&out_cen$year==meas[xts]]<-growth_c_agC
+      
+      #proportion dendrometer
+      bm1_dend <- tmp_cen %>% filter(year==meas[xts-1]&dend==1) %>% group_by(cocoa) %>% summarise(total=sum(bm,na.rm=T)) 
+      bm2_dend <- tmp_cen %>% filter(year==meas[xts]&dend==1) %>% group_by(cocoa) %>% summarise(total=sum(bm,na.rm=T))
+      prop_dend <- (bm2_dend$total[1]-bm1_dend$total[1])/as.numeric(daydiff)*365/plot_size/growth
+      prop_dend_c <- (bm2_dend$total[2]-bm1_dend$total[2])/as.numeric(daydiff)*365/plot_size/growth_c
+      out_cen$prop_growth[out_cen$cocoa==0&out_cen$year==meas[xts]]<-prop_dend
+      out_cen$prop_growth[out_cen$cocoa==1&out_cen$year==meas[xts]]<-prop_dend_c
+    }
+    #save census values
+    write_csv(out_cen,path = paste0("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/NPP/Dendrometers/census_npp_",gsub(" ","",this_plot_name),"_",max(year(out_df$date)),".csv"))
+  #------End Census Estimates-----#
   }
-  
-  ## TO DO ## ADD TERHI's HEIGHT PROPAGATION CORRECTION
-   
-  ## find global start and end month:
-  cen$min_date <- NULL
-  cen$max_date <- NULL
-  cen$date     <- as.Date(paste(cen$year, cen$month, cen$day, sep="."), format="%Y.%m.%d") 
-  
-  # temp <- subset(cen, cen$year == census1_year & cen$year == census2_year) # 
-  #agC_mydates     <-  cbind(as.character(cen$PlotNum), as.character(cen$Tag), as.character(cen$date), as.character(cen$agC))
-  agC_mydates  <-  subset(cen, cen$year == census1_year | cen$year == census2_year, select = c(plotname, tree_tag, year, month, day, date, agC))
-  
-  for (i in 1:nrow(agC_mydates)) {
-    min_date <- as.character(min(agC_mydates$date)) 
-    max_date <- as.character(max(agC_mydates$date)) 
-  }
-  
-  start_date <- as.Date(format(min(strptime(min_date, format="%Y-%m-%d")))) 
-  end_date   <- as.Date(format(max(strptime(max_date, format="%Y-%m-%d"))))
-  census_interval <- as.numeric(difftime(end_date, start_date, units="days"))
-  
-  # (AG carbon.2 - AG carbon.1) / census_interval
-  agC_1         <- subset(cen, cen$year == census1_year, select = c(plotname, tree_tag, cocoa, year, month, day, agC))
-  agC_2         <- subset(cen, cen$year == census2_year, select = c(plotname, tree_tag, cocoa, year, month, day, agC))
-  #agC_1$uid     <- paste(agC_1$tree_tag, agC_1$year, agC_1$month, agC_1$day, sep=".") 
-  #agC_2$uid     <- paste(agC_2$tree_tag, agC_2$year, agC_2$month, agC_2$day, sep=".")
-  npp           <- sqldf("SELECT agC_1.plotname, agC_1.tree_tag, agC_1.cocoa, agC_1.year, agC_1.month, agC_1.agC , agC_2.agC FROM agC_1 JOIN agC_2 ON agC_1.tree_tag = agC_2.tree_tag")
-  colnames(npp) <- c("plot_code", "tree_tag", "cocoa","year", "month", "agC.1", "agC.2")
-  npp_day       <- (npp$agC.2-npp$agC.1) / census_interval
-  NPPacw_cocoa_MgC_ha_yr <- (sum(npp_day[npp$cocoa==1], na.rm=T))*365 
-  NPPacw_shade_MgC_ha_yr <- (sum(npp_day[npp$cocoa==0], na.rm=T))*365 
- 
-  # Talbot census correction function
-  NPPcorr = NPPacw_shade_MgC_ha_yr + (0.0091 * NPPacw_shade_MgC_ha_yr) * (census_interval/365)
-  
-return(paste(NPPacw_cocoa_MgC_ha_yr,NPPacw_shade_MgC_ha_yr,sep="xx"))
-
 }
 
-# w=which(!is.na(data$biomass.2003) & !is.na(data$biomass.2007)) # id surviving trees to estimate biomass growth
-# w2=which(!is.na(data$biomass.2003) & is.na(data$biomass.2007)) # id dying trees
-# w3=which(is.na(data$biomass.2003) & !is.na(data$biomass.2007)) # id recruiting trees
-  
