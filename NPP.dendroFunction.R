@@ -28,7 +28,10 @@ site="Kakum"
 plts<-read.csv(paste0(getwd(),"/",site,"/plots.csv"))
 trans=c("HM","KA")
 #load wood density values
-wdens<-read.csv(paste0(getwd(),"/",site,"/AGB/ForestPlots/WoodDensity_lookup.csv"))
+#load wood density values
+w.dens<-read.xls("/Volumes/ELDS/ECOLIMITS/R_codes/GlobalWoodDensityDatabase.xls",sheet="Data")
+w.dens<-data_frame(family=as.character(w.dens$Family),species=as.character(w.dens$Binomial),wood_density_g_m2=as.numeric(w.dens$Wood.density..g.cm.3...oven.dry.mass.fresh.volume),Region=as.character(w.dens$Region))
+w.dens$genus <- str_split_fixed(w.dens$species, " ",2)[,1]
 #load cocoa height relationship
 #c.ht<-read.csv(paste0(getwd(),"/",site,"/AGB/ForestPlots/cocoa_height.csv"))
 #load per transect height relationships
@@ -38,12 +41,15 @@ wdens<-read.csv(paste0(getwd(),"/",site,"/AGB/ForestPlots/WoodDensity_lookup.csv
 cendates<-read.csv(paste0(getwd(),"/",site,"/AGB/ForestPlots/census.dates.csv"))
 
 for(p in 1:length(trans)){
-  h<-read.csv(paste0(getwd(),"/",site,"/NPP/Dendrometers/",trans[p],"_treeheights.csv"))
+  #h<-read.csv(paste0(getwd(),"/",site,"/NPP/Dendrometers/",trans[p],"_treeheights.csv"))
   
   dendrometer <- data.frame(lapply(read.csv(paste0(getwd(),"/",site,"/NPP/Dendrometers/",trans[p],"_dendroAll_clean.csv")), as.character),stringsAsFactors=F)
-  dendrometer[,6:10]<-cbind(lapply(dendrometer[,6:10],as.numeric))
+  dendrometer<-dendrometer %>% select(-X.1,-X)
+  dendrometer[,5:14]<-sapply(dendrometer[,5:14],as.numeric)
+  dendrometer$wood_density_g_m2<-as.numeric(dendrometer$wood_density_g_m2)
+  
   #change of tree_tag
-  dendrometer$tree_tag<-paste0(gsub(" ","",dendrometer$plotname),dendrometer$tree_tag)
+  #dendrometer$tree_id<-paste0(gsub(" ","",dendrometer$plotname),dendrometer$tree_tag)
   
   x1<-as.character(unique(dendrometer$plotname))
   
@@ -61,8 +67,24 @@ for(p in 1:length(trans)){
     plotit=T
     cocoa_density<-0.34
     
-    H<-h[h$plotname==plotname,]
-    H$TagNo<-paste0(gsub(" ","",H$plotname),H$TagNo)
+    #H<-h[h$plotname==plotname,]
+    #H$TagNo<-paste0(gsub(" ","",H$plotname),H$TagNo)
+    
+    ## get data for all trees that are in the plot selected from census & dendrometer files
+    #cen1  <- subset(census, plot_code==plotname)
+    #cen   <- subset(census, year==census_year) 
+    #cen   <- census
+    dend1 <- dendrometer[dendrometer$plotname==plotname,]
+    
+    dend1$cocoa<-0
+    dend1[dend1$genus=="Theobroma","cocoa"]<-1
+    #dend1[dend1$tree_tag==paste0(gsub(" ","",plotname),"NoTag"),"cocoa"]<-"cocoa"
+    #dend1<-dend1[!is.na(dend1$cocoa),]
+    # re-name year, month, day in cen
+    #cen$cenyear  <- cen$year
+    #cen$cenmonth <- cen$month
+    #cen$cenday   <- cen$day
+    
     
     # requires two .csv files: 
     if(length(grep("FP",plotname))==0) census<- data.frame(lapply(read.csv(paste0(getwd(),"/",site,"/AGB/ForestPlots/",gsub(" ","",plotname),"_LS.csv")),as.character),stringsAsFactors=F) else census<-read.csv(paste0(getwd(),"/",site,"/AGB/ForestPlots/",trans[p],"_forest.csv"))
@@ -70,7 +92,7 @@ for(p in 1:length(trans)){
     colnames(census)<-c("x","subplot","x.coord","y.coord","tree_tag","orig.family","orig.species","family","species","dbh1","pom","dbh2","dbh3","height","f1","f2","f3","f4","f5","f1.1","notes")
    
     #make tree_tag specific for plot
-    census$tree_tag<-paste0(gsub(" ","",plotname),census$tree_tag)
+    #census$tree_tag<-paste0(gsub(" ","",plotname),census$tree_tag)
     
     cdate<-data.frame(cendates[cendates$plotname==plotname,],stringsAsFactors = F)
     cdate$date<-as.Date(cdate$date,format="%Y-%m-%d")
@@ -85,23 +107,40 @@ for(p in 1:length(trans)){
       if(c==ncol(tmp)) dbh[[c]]<-cbind(as.character(census$tree_tag),as.character(census$species),tmp[,c],census$height,year(cdate[cdate$census==paste0("census",c),"date"]),month(cdate[cdate$census==paste0("census",c),"date"]),day(cdate[cdate$census==paste0("census",c),"date"]),as.character(census$f1)) else 
         dbh[[c]]<-cbind(as.character(census$tree_tag),as.character(census$species),tmp[,c],census$height,year(cdate[cdate$census==paste0("census",c),"date"]),month(cdate[cdate$census==paste0("census",c),"date"]),day(cdate[cdate$census==paste0("census",c),"date"]),as.character(census$f1.1))
     }
-    census<-do.call(rbind.data.frame,dbh)
-    colnames(census)<-c("tree_tag","species","dbh","height_m","year","month","day","life.status")
-    census<-data.frame(sapply(census,as.character),stringsAsFactors = F)
-    census$plotname<-plotname
-    census$dbh<-as.numeric(as.character(census$dbh))
-    census$life.status[census$life.status!=0]<-1
+    census1<-do.call(rbind.data.frame,dbh)
+    colnames(census1)<-c("tree_tag","species","dbh","height_m","year","month","day","life.status")
+    census1<-data.frame(sapply(census1,as.character),stringsAsFactors = F)
+    census1$plotname<-plotname
+    census1$dbh<-as.numeric(as.character(census1$dbh))
+    census1$life.status[census1$life.status!=0]<-1
     
     #add cocoa column
-    census[census$species!="Theobroma cacao"&!is.na(census$species),"cocoa"]<-0
-    census[census$species=="Theobroma cacao"&!is.na(census$species),"cocoa"]<-1
-    census[is.na(census$species),"cocoa"]<-0
+    census1[census1$species!="Theobroma cacao"&!is.na(census1$species),"cocoa"]<-0
+    census1[census1$species=="Theobroma cacao"&!is.na(census1$species),"cocoa"]<-1
+    census1[is.na(census1$species),"cocoa"]<-0
    
     #add tree_height
-    census$height_m<-as.numeric(as.character(census$height_m))
-    census$height_m<-H[match(census$tree_tag,H$TagNo),"height_m"]
+    census1$height_m<-as.numeric(as.character(census1$height_m))
+    #census1$height_m<-H[match(census1$tree_tag,H$TagNo),"height_m"]
     
-    census$density<-wdens[match(census$species,wdens$species),"WD"]
+    #match wood density for species
+    wds<-left_join(census %>% select(family,species),w.dens %>% filter(Region=="Africa (tropical)") %>% select(-family),by="species")
+    wdens<-wds %>% group_by(family,species) %>% summarise(wood_density_g_m2=mean(wood_density_g_m2,na.rm=T)) %>% ungroup()
+    #pull out genera from missing species
+    wdens$genus <- str_split_fixed(wdens$species," ",2)[,1]
+    wdg<-left_join(wdens %>% select(genus),w.dens %>% select(family,genus,wood_density_g_m2),by="genus")
+    wdg <- wdg %>% group_by(genus) %>% summarise(gen.wood_density = mean(wood_density_g_m2,na.rm=T))
+    wdens <- left_join(wdens,wdg,by="genus")
+    wdens <- wdens %>% mutate(wood_density_g_m2=replace(wood_density_g_m2,is.na(wood_density_g_m2),gen.wood_density[is.na(wood_density_g_m2)]))
+    #pull out missing family
+    wdf <- wdens %>% filter(is.na(wood_density_g_m2))
+    wdf <- left_join(wdf %>% select(family),w.dens %>% select(family,wood_density_g_m2),by="family")
+    wdf <- wdf %>% group_by(family) %>% summarise(fam.wood_density = mean(wood_density_g_m2,na.rm=T)) %>% ungroup()
+    wdens <- left_join(wdens,wdf,by="family")
+    wdens <- wdens %>% mutate(wood_density_g_m2=replace(wood_density_g_m2,is.na(wood_density_g_m2),fam.wood_density[is.na(wood_density_g_m2)])) %>%
+      select(species,wood_density_g_m2)
+    
+    census1<-left_join(census1,wdens,by="species")
     
     #census<-data.frame(cbind(as.numeric(census$T1),as.numeric(census$Tag),as.numeric(census$cocoa),as.numeric(census$density),as.numeric(census$DBH0),as.numeric(census$THeight),as.numeric(census$year),as.numeric(census$month),as.numeric(census$day)))
     #colnames(census)<-c("Subplot","TagNo","cocoa","density","dbh","height_m","year","month","day")
@@ -111,27 +150,11 @@ for(p in 1:length(trans)){
     #is DBH in mm? (if yes assign 10 to factor)
     cf=10
     #NPPacw_dendro <- function(census, dendrometer, plotname, allometric_option="Default", height_correction_option="Default", census_year) {
-    census$dbh<-as.numeric(census$dbh)/cf
+    census1$dbh<-as.numeric(census1$dbh)/cf
     
       # load libraries
       library(sqldf)
     
-    ## get data for all trees that are in the plot selected from census & dendrometer files
-    #cen1  <- subset(census, plot_code==plotname)
-    #cen   <- subset(census, year==census_year) 
-    #cen   <- census
-    dend1 <- dendrometer[dendrometer$plotname==plotname,]
-    dend1[is.na(dend1$year),"year"]<-census_year
-    dend1[is.na(dend1$month),"month"]<-month(cdate[cdate$census=="census1","date"])
-    dend1[is.na(dend1$day),"day"]<-day(cdate[cdate$census=="census1","date"])
-    
-    dend1$cocoa<-census[match(dend1$tree_tag,census$tree_tag),"cocoa"]
-    #dend1[dend1$tree_tag==paste0(gsub(" ","",plotname),"NoTag"),"cocoa"]<-"cocoa"
-    dend1<-dend1[!is.na(dend1$cocoa),]
-    # re-name year, month, day in cen
-    #cen$cenyear  <- cen$year
-    #cen$cenmonth <- cen$month
-    #cen$cenday   <- cen$day
     
     ## get the data you need from the census file into the dendrometer data frame: density, height, first dbh measurement, date of first dbh measurement
     #dend <- sqldf("SELECT dend1.*, cen.density, cen.height_m, cen.dbh, cen.cenyear, cen.cenmonth, cen.cenday FROM cen JOIN dend1 ON cen.TagNo = dend1.tree_tag")

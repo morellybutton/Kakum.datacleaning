@@ -8,13 +8,16 @@
 library(tidyverse); library(lubridate)
 source("/users/alex/Documents/Research/Africa/ECOLIMITS/Codes/Kakum.datacleaning/DendroFunctions.R"); 
 
+setwd("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/")
+
 trans=c("HM","KA")
 #load plotdata
-plts<-read.csv("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/plots.csv")
-
+plts<-read.csv(paste0(getwd(),"/plots.csv"))
+#plts<-read.csv("/users/alex/Documents/Research/Africa/ECOLIMITS/Data/Kakum/plots.csv")
+wd_lookup<-read.csv(paste0(getwd(),"/AGB/ForestPlots/WoodDensity_lookup.csv"))
 
 for(p in 1:length(trans)){
-  dendrometer <- read_csv(paste0("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/NPP/Dendrometers/",trans[p],"_dendroAll_clean.csv"))
+  dendrometer <- read_csv(paste0(getwd(),"/NPP/Dendrometers/",trans[p],"_dendroAll_clean.csv"))
   x1<-as.character(unique(dendrometer$plotname))
   
   for(k in 1:length(x1)){
@@ -31,19 +34,22 @@ for(p in 1:length(trans)){
     
     
     # LOAD DATA ---------------------------------------------------------------------------------#
-    if(length(grep("FP",this_plot_name))==0) census_all<- read_csv(paste0("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/AGB/ForestPlots/",gsub(" ","",this_plot_name),"_LS.csv"), na=c("NA", "NaN", "")) else census_all<-read_csv(paste0("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/AGB/ForestPlots/",trans[p],"_forest.csv"), na=c("NA", "NaN", ""))
+    if(length(grep("FP",this_plot_name))==0) census_all<- read_csv(paste0(getwd(),"/AGB/ForestPlots/",gsub(" ","",this_plot_name),"_LS.csv"), na=c("NA", "NaN", "")) else census_all<-read_csv(paste0(getwd(),"/AGB/ForestPlots/",trans[p],"_forest.csv"), na=c("NA", "NaN", ""))
     #census_all  <- read_csv("data/Alex_Ghana/old/KAFP_census.csv", na=c("NA", "NaN", "")) # Census_Santarem_2014_2016.csv
     names(census_all) <- tolower(names(census_all))
     names(census_all) <- gsub(pattern=" ",replacement="_",names(census_all))
-    census_all <- census_all %>% rename(tree_tag = tag) %>% mutate(tree_tag = as.character(tree_tag))
+    census_all <- census_all  %>% mutate(tree_tag = as.character(tag))
     #census dates
-    census_dates<-read_csv("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/AGB/ForestPlots/Census.dates.csv")
+    census_dates<-read_csv(paste0(getwd(),"/AGB/ForestPlots/Census.dates.csv"))
     census_dates <- census_dates %>% filter(plotname==this_plot_name)
     census_dates$no<-1:nrow(census_dates)
     zanne <- read_csv("/users/alex/Documents/Research/Africa/ECOLIMITS/Codes/Kakum.datacleaning/GlobalWoodDensityDatabase.csv")
     spec(census_all) 
-    cheights<-read_csv("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/AGB/ForestPlots/cocoaheights.csv")
-    cheights<-cheights %>% rename(height=THeight) %>% mutate(wd=0.42)
+    cheights<-read_csv(paste0(getwd(),"/AGB/ForestPlots/cocoaheights.csv"))
+    cheights<-cheights %>% mutate(height=THeight) %>% mutate(wd=0.42)
+    t_heights <- read_csv(paste0(getwd(),"/AGB/ForestPlots/",trans[p],"_treeheights.csv"))
+    t_heights$dbh <- t_heights$dbh*10
+    
     # END LOAD DATA -----------------------------------------------------------------------------#
     
     #--------------------------------------------------------------------------------------------
@@ -54,18 +60,29 @@ for(p in 1:length(trans)){
     # 3) Identify problem tree_tags
     census <- census_all %>% filter(is.na(dbh)==F)
     census <- census %>% mutate(height=ifelse(theight<80, theight, NA))
-    census <- census %>% rename(family=nfam, species=nspecies)
+    census <- census %>% mutate(family=nfam, species=nspecies)
     census$genus <- sapply(strsplit(census$species," "), "[",1)
     census$continent <- "Africa"
     
     species_wd <- find_wd(census)
     species_wd <- species_wd %>% distinct()
     species_wd <- species_wd %>% mutate(species=paste(genus, species))
-    census <- left_join(census, species_wd %>% select(species,wd), by=c("species"))
+    census <- left_join(census %>% select(-nfam,-nspecies,-tag), species_wd %>% select(species,wd), by=c("species"))
     census$cocoa <-0
     census <- census %>% mutate(cocoa=replace(cocoa,genus=="Theobroma",1))
     
-    census<-census %>% rename(flag1.2=flag1.1,flag1.3=flag1)
+    census<-census %>% mutate(flag1.2=flag1.1,flag1.3=flag1) %>% select(-flag1.1,-flag1)
+    
+    t_heights <- t_heights %>% mutate(height=ifelse(height_m<80, height_m, NA))
+    t_heights <-  t_heights %>% mutate(species=Species)
+    t_heights$genus <- sapply(strsplit(t_heights$species," "), "[",1)
+    t_heights$family <- as.character(wd_lookup[match(t_heights$Species,wd_lookup$species),"family"])
+    t_heights$continent <- "Africa"
+    
+    species_wd <- find_wd(t_heights)
+    species_wd <- species_wd %>% distinct()
+    species_wd <- species_wd %>% mutate(species=paste(genus, species))
+    t_heights <- left_join(t_heights, species_wd %>% select(species,wd), by=c("species"))
     
     #--- Estimate heights ----------------------------------------------------------------
     #---- For Cocoa ---------------------
@@ -84,10 +101,10 @@ for(p in 1:length(trans)){
     rm(log_fit,lm_fit,mod_list,best_mod)
     
     #---- For Shade Trees ---------------------
-    if(t_hghts==1){
-      log_fit <- lm(height~log(dbh), data=census %>% filter(is.na(wd)==F&cocoa==0));
-      lm_fit <- lm(height~dbh, data=census %>% filter(is.na(wd)==F&cocoa==0))
-      nl_fit <- nls(height~ b0*((1/wd)^b1)*dbh^b2, data=census,
+    #if(t_hghts==1){
+      log_fit <- lm(height_m~log(dbh), data=t_heights %>% filter(is.na(wd)==F));
+      lm_fit <- lm(height_m~dbh, data=t_heights %>% filter(is.na(wd)==F))
+      nl_fit <- nls(height~ b0*((1/wd)^b1)*dbh^b2, data=t_heights,
                     start = list(b0=2.643, b1=-0.3, b2=0.5))
       #bbmle::AICctab(log_fit, lm_fit, nl_fit)
       mod_list <- list(log_fit, lm_fit, nl_fit)
@@ -95,8 +112,9 @@ for(p in 1:length(trans)){
       census[census$cocoa==0,"height_m"] <- predict(mod_list[[best_mod]], 
                                                     newdata=data.frame(wd=census[census$cocoa==0,"wd"], dbh=census[census$cocoa==0,"dbh"]))
       
+      
       mod_height <- mod_list[[best_mod]]
-    } else census <- census %>% mutate(height_m=replace(height_m,is.na(height_m),height[is.na(height_m)]))
+     census <- census %>% mutate(height_m=replace(height_m,!is.na(height),height[!is.na(height)]))
     
     #replace estimated heights with measured heights
     #census <- census %>% mutate(height_m=replace(height_m,!is.na(theight),theight[!is.na(theight)]))
@@ -112,7 +130,7 @@ for(p in 1:length(trans)){
       summarize(u=mean(baseline_dbh_mm, na.rm=T)) %>% 
       arrange(desc(u)) %>% pull(tree_tag)
     dat <- dat %>% mutate(date=lubridate::parse_date_time(date, "ymd"))
-    dat <- dat %>%  rename(baseline_dbh = baseline_dbh_mm)
+    dat <- dat %>%  mutate(baseline_dbh = baseline_dbh_mm) %>% select(-baseline_dbh_mm)
     dat$current_dbh <- est_dbh_from_dendro(dbh = dat$baseline_dbh, 
                                            dendrometer_reading_mm = dat$dendrometer_reading_mm_cum) #!
     tmp <- census %>% select(tree_tag, species, wd)
@@ -188,11 +206,12 @@ for(p in 1:length(trans)){
     dend_tags$dend<-1
     cen<-left_join(cen,dend_tags,by="tree_tag")
     cen <- cen %>% mutate(dend=replace(dend,is.na(dend),0))
+
     
     #calculate proportion of AGB represented by dendrometers
-    out_cen <- cen %>% group_by(year,cocoa) %>% filter(flag1!=0) %>%
+    out_cen <- cen %>% group_by(year,cocoa) %>% filter(flag1!=0&!is.na(flag1)&dbh>100) %>%
       summarise(total_bm=sum(bm/plot_size,na.rm=T), total_agC=sum(bm,na.rm=T)*(1/(2.1097*1000))/plot_size)
-    out_den <- cen %>% group_by(year,cocoa,dend) %>% filter(flag1!=0&dend==1)%>%
+    out_den <- cen %>% group_by(year,cocoa,dend) %>% filter(flag1!=0&!is.na(flag1)&dend==1&dbh>100)%>%
       summarise(dend_bm=sum(bm/plot_size,na.rm=T), dend_agC=sum(bm,na.rm=T)*(1/(2.1097*1000))/plot_size)
     
     out_cen<-left_join(out_cen,out_den %>% select(-dend), by=c("year","cocoa"))
@@ -208,14 +227,14 @@ for(p in 1:length(trans)){
       tmp_cen <- cen %>% filter(year==meas[xts-1]|year==meas[xts]&flag1!=0&dbh>100)
       tag.trees <- tmp_cen %>% filter(year==meas[xts]) %>% select(tree_tag) %>% unique()
       tag.trees$present<-1
-      tmp_cen <- left_join(tmp_cen,tag.trees, by="tree_tag")
-      bm1 <- tmp_cen %>% filter(year==meas[xts-1]&present==1) %>% group_by(cocoa) %>% summarise(total=sum(bm,na.rm=T),no.trees=length(bm)) 
-      bm2 <- tmp_cen %>% filter(year==meas[xts]&present==1) %>% group_by(cocoa) %>% summarise(total=sum(bm,na.rm=T),no.trees=length(bm)) 
+      tmp_cen <- left_join(tmp_cen,tag.trees, by="tree_tag") %>% filter(present==1)
+      bm1 <- tmp_cen %>% filter(year==meas[xts-1]) %>% group_by(cocoa) %>% summarise(total=sum(bm,na.rm=T),no.trees=length(bm)) 
+      bm2 <- tmp_cen %>% filter(year==meas[xts]) %>% group_by(cocoa) %>% summarise(total=sum(bm,na.rm=T),no.trees=length(bm)) 
       daydiff <- (tmp_cen %>% filter(year==meas[xts]) %>% select(date) %>% unique())-(tmp_cen %>% filter(year==meas[xts-1]) %>% select(date) %>% unique())
       growth <- (bm2$total[1]-bm1$total[1])/as.numeric(daydiff)*365/plot_size
-      growth_agC <- growth*(1/(2.1097*1000))/plot_size
+      growth_agC <- growth*(1/(2.1097*1000))
       growth_c <- (bm2$total[2]-bm1$total[2])/as.numeric(daydiff)*365/plot_size
-      growth_c_agC <-growth_c*(1/(2.1097*1000))/plot_size
+      growth_c_agC <-growth_c*(1/(2.1097*1000))
       out_cen$growth[out_cen$cocoa==0&out_cen$year==meas[xts]]<-growth
       out_cen$growth[out_cen$cocoa==1&out_cen$year==meas[xts]]<-growth_c
       out_cen$growth_agC[out_cen$cocoa==0&out_cen$year==meas[xts]]<-growth_agC
@@ -230,7 +249,7 @@ for(p in 1:length(trans)){
       out_cen$prop_growth[out_cen$cocoa==1&out_cen$year==meas[xts]]<-prop_dend_c
     }
     #save census values
-    write_csv(out_cen,path = paste0("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/NPP/Dendrometers/census_npp_",gsub(" ","",this_plot_name),"_",max(year(out_df$date)),".csv"))
+    write_csv(out_cen,path = paste0(getwd(),"/NPP/Dendrometers/census_npp_",gsub(" ","",this_plot_name),".csv"))
   #------End Census Estimates-----#
   }
 }

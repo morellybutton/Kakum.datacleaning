@@ -33,7 +33,6 @@ num.lf<-9
 le<-8.2
 se<-2.8
 #a is 2.8 and b is 8.2
-
 final=list()
 for(p in 1:length(plotname)){
   Dataall<-read.xls(paste0(getwd(),"/",site,"/NPP/Litter Data/Combo_plotlevel.v2.xlsx"),sheet=plotname[p])

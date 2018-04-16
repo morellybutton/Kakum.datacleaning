@@ -1,20 +1,21 @@
 #code to combine and organize disease survey data for cocoa from raw data sheets
 library(stringr)
-library(gridBase)
+#library(gridBase)
 library(gdata)
-library(ggplot2)
+#library(ggplot2)
 library(lubridate)
-library(plyr)
+#library(plyr)
 library(reshape2)
+library(tidyverse)
 #library(xts)
 
 setwd("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/Disease")
 
-#dates=c("Jan","Feb","Mar","Apr","May","June","July","Aug","Sept","Oct","Nov","Dec")
+dates=c("Jan","Feb","Mar","Apr","May","June","July","Aug","Sept","Oct","Nov","Dec")
 #dates=c("June","Aug","Sept","Oct","Nov")
-dates=c("Jan","Feb","Mar","Apr","May","June")
+#dates=c("Jan","Feb","Mar","Apr","May","June")
 topics=c("(tree)","(CPD)")
-year<-"2017"
+year<-"2016"
 trans<-c("AB","HM","KA")
 ns<-read.csv("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/plots.csv")
 
@@ -53,6 +54,10 @@ for( i in 1:length(dates)){
    
     if(year=="2014") colnames(dataS.1)<-c("Plot","TreeNo","Subplot","TsPods","OsPods","TmPods","OmPods","TlPods","OlPods","NoCPB","NoBP","Creep","Mist","StB","Ants","SM","Notes") else colnames(dataS.1)<-c("Plot","TreeNo","Subplot","TsPods","OsPods","TmPods","OmPods","TlPods","OlPods","NoCPB","NoBP","Mammal","Creep","Mist","StB","Ants","SM","Notes")
     if(year=="2014") dataS.1[,"Mammal"]=0
+    
+    #add mortality event
+    dataS.1$Mortality<-0
+    dataS.1[grep("Dead",dataS.1$Notes),"Mortality"]<-1
     #find unique plotnumbers
     p<-unique(as.character((dataS.1$Plot)))
     #add CPB intensity column
@@ -135,17 +140,19 @@ rm(final,d,final.1,final.2,dataB,dataS,dataS.1)
 #generate monthly measure metrics for disease incidence by plot
 #cocoa pod production
 pdw<-read.table(paste0(getwd(),"/Disease_2014_summary.csv"),sep=",",header=T)
-pdw$Date<-as.Date(pdw$Date,format="%d/%m/%Y")
+pdw$Date<-as.Date(as.character(pdw$Date),format="%Y-%m-%d")
 pdw1<-read.table(paste0(getwd(),"/Disease_2015_summary.csv"),sep=",",header=T)
-pdw1$Date<-as.Date(pdw1$Date,format="%d/%m/%Y")
+pdw1$Date<-as.Date(as.character(pdw1$Date),format="%d/%m/%Y")
 pdw2<-read.table(paste0(getwd(),"/Disease_2016_summary.csv"),sep=",",header=T)
-pdw2$Date<-as.Date(pdw2$Date,format="%d/%m/%Y")
+pdw2$Date<-as.Date(as.character(pdw2$Date),format="%Y-%m-%d")
 pdw3<-read.table(paste0(getwd(),"/Disease_2017_summary.csv"),sep=",",header=T)
-pdw3$Date<-as.Date(as.character(pdw3$Date),format="%d/%m/%Y")
+pdw3$Date<-as.Date(as.character(pdw3$Date),format="%Y-%m-%d")
 #avg<-read.table(paste0(getwd(),"/cocoaYield.csv"),sep=",",header=T)
 pdw<-data.frame(rbind(pdw,pdw1,pdw2,pdw3),stringsAsFactors = F)
 rm(pdw1,pdw2,pdw3)
-pdw<-pdw[!is.na(pdw$Creep),]
+pdw<-pdw[grep("Entered by:",pdw$Plot,invert=T),]
+
+#pdw$season <- NA
 
 #identify period of pod maturation of interest for 2014/15 heavy crop
 pdw[year(pdw$Date)=="2015"&month(pdw$Date)<7|year(pdw$Date)=="2014","season"]<-"2014/15"
@@ -191,7 +198,7 @@ pertree.pset<-ddply(pdw[!is.na(pdw$season),],.(Plot,treeno,season),summarise,Cre
 write.csv(pertree.pset,paste0(getwd(),"/Seasonal_pertree.plot.disease.csv"))
 
 #calculate per plot monthly incidence
-tree.p<-ddply(pdw,.(Plot,month),summarise,Creep=mean(Creep,na.rm=T),Mist=mean(Mist,na.rm=T),StB=mean(StB,na.rm=T))
+tree.p<-ddply(pdw %>% filter(month>"2014-01-01"),.(Plot,month),summarise,Creep=mean(Creep,na.rm=T),Mist=mean(Mist,na.rm=T),StB=mean(StB,na.rm=T))
 #add month variable
 #tree.p$month<-as.Date(round_date(as.Date(tree.p$Date),unit="month"))
 #plot incidence over season
@@ -225,7 +232,7 @@ pdw$Mammal<-as.numeric(as.character(pdw$Mammal))
 #write.csv(pod.p14,paste0(getwd(),"/Disease_HC1415podpests.csv"))
 
 #for pod pests, plot incidence over month
-pod.p<-ddply(pdw,.(Plot,month),summarise,Total.pods=sum(TsPods,TmPods,TlPods,na.rm=T),PropCPB=sum(NoCPB,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T),PropBP=sum(NoBP,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T),PropMammal=sum(Mammal,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T),iCPB=sum(iCPB*NoCPB,na.rm=T)/sum(NoCPB,na.rm=T),soil.moist=mean(SM,na.rm=T))
+pod.p<-ddply(pdw %>% filter(month>"2014-01-01"),.(Plot,month),summarise,Total.pods=sum(TsPods,TmPods,TlPods,na.rm=T),PropCPB=sum(NoCPB,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T),PropBP=sum(NoBP,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T),PropMammal=sum(Mammal,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T),iCPB=sum(iCPB*NoCPB,na.rm=T)/sum(NoCPB,na.rm=T),soil.moist=mean(SM,na.rm=T))
 #add month
 #pod.p$month<-as.Date(round_date(as.Date(pod.p$month),unit="month"))
 #save dataset
@@ -236,36 +243,3 @@ tree.p[,6:10]<-pod.p[match(interaction(tree.p$Plot,tree.p$month),interaction(pod
 
 #write monthly disease measures
 write.csv(tree.p,paste0(getwd(),"/Disease_monthlymeasures.csv"))
-
-
-#plot incidence over season
-#pod.p[year(pod.p$Date)=="2015"&month(pod.p$Date)<6|year(pod.p$Date)=="2014","season.1415"]<-1
-#pod.p[is.na(pod.p$season.1415),"season.1415"]<-0
-
-#pod.p1<-pod.p[pod.p$season.1415==1,]
-pod.p2<-cbind(pod.p[,1:2],pod.p[,4:5])
-pod.p2<-melt(pod.p2,id.vars=c("Plot","month"))
-ggplot(pod.p2,aes(as.Date(month),value,color=factor(variable)))+geom_line()+facet_wrap(~Plot)+ylim(0,0.5)
-ggsave(paste0(getwd(),"/PerPod_MonthlyProportion_CPB_BP.pdf"))
-
-#do again just for mammal
-pod.p2<-cbind(pod.p[,1:2],pod.p[,6])
-pod.p2<-melt(pod.p2,id.vars=c("Plot","month"))
-pod.p2$variable<-"mammal"
-ggplot(pod.p2,aes(as.Date(month),value,color=factor(variable)))+geom_line()+facet_wrap(~Plot)
-ggsave(paste0(getwd(),"/PerPod_MonthlyProportion_Mammal.pdf"))
-
-#do again for CPB intensity score and soil moisture
-pod.p<-ddply(pdw,.(Plot,month),summarise,iCPB=sum(iCPB,na.rm=T)/sum(NoCPB,na.rm=T),soil.moist=mean(SM,na.rm=T))
-pod.p[is.na(pod.p$iCPB),"iCPB"]<-0
-ggplot(pod.p,aes(as.Date(month),iCPB))+geom_line()+facet_wrap(~Plot)
-ggsave(paste0(getwd(),"/PerPod_MonthlyIntensity_CPB.pdf"))
-
-ggplot(pod.p,aes(as.Date(month),soil.moist))+geom_line()+facet_wrap(~Plot)
-ggsave(paste0(getwd(),"/PerPlot_Monthly_soilmoisture.pdf"))
-
-#looks like mean incidence and intensity over season is best
-#pest.final<-ddply(pdw,.(Plot,season.1415),summarise,Creep=mean(Creep,na.rm=T),Mist=mean(Mist,na.rm=T),StB=mean(StB,na.rm=T),PropCPB=mean(sum(NoCPB,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T)),PropBP=mean(sum(NoBP,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T)),PropMammal=mean(sum(Mammal,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T)),IntensCPB=mean(sum(iCPB,na.rm=T)/sum(NoCPB,na.rm=T)),soil.moist=mean(SM,na.rm=T))
-
-#write pest variables
-#write.csv(pest.final,paste0(getwd(),"/Seasonal_meanpestincidence.csv"))

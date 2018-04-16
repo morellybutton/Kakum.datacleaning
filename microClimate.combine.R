@@ -1,10 +1,11 @@
 #create figures of microclimate data
 library(gdata)
-library(stringr)
+#library(stringr)
 library(gridExtra)
-library(Rmisc)
-library(ggplot2)
+#library(Rmisc)
+#library(ggplot2)
 library(zoo)
+library(tidyverse)
 
 setwd("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/MetData")
 
@@ -266,8 +267,8 @@ for(i in 1:(length(dnames[,1]))){
 ah<-do.call(rbind.data.frame,AH)
 colnames(ah)<-c("month","avg","name","plotcode","dist")
 ah[ah$avg<=0&!is.na(ah$avg),"avg"]<-NA
-ahc <- summarySE(ah, measurevar="avg", groupvars=c("month","dist"),na.rm=T)
-ahc$var<-"AH"
+#ahc <- summarySE(ah, measurevar="avg", groupvars=c("month","dist"),na.rm=T)
+#ahc$var<-"AH"
 
 #vpd<-do.call(rbind.data.frame,VPD)
 #colnames(vpd)<-c("month","avg","name","dist")
@@ -275,207 +276,135 @@ ahc$var<-"AH"
 #vpc$var<-"VPD"
 
 mvpd<-do.call(rbind.data.frame,mVPD)
-colnames(mvpd)<-c("month","max","name","plotcode","dist")
+colnames(mvpd)<-c("month","mvpd","name","plotcode","dist")
 #remove -Inf
-mvpd[mvpd$max==-Inf&!is.na(mvpd$max),"max"]<-NA
+mvpd[mvpd$mvpd==-Inf&!is.na(mvpd$mvpd),"mvpd"]<-NA
 #remove super high value for now
-mvpd[mvpd$max>80&!is.na(mvpd$max),"max"]<-NA
+mvpd[mvpd$mvpd>80&!is.na(mvpd$mvpd),"mvpd"]<-NA
 
-vpc <- summarySE(mvpd, measurevar="max", groupvars=c("month","dist"),na.rm=T)
-vpc$var<-"VPD"
+#vpc <- summarySE(mvpd, measurevar="max", groupvars=c("month","dist"),na.rm=T)
+#vpc$var<-"VPD"
 
 vwc<-do.call(rbind.data.frame,VWC)
-colnames(vwc)<-c("month","avg","name","plotcode","dist")
-vwc <- summarySE(vwc, measurevar="avg", groupvars=c("month","dist"),na.rm=T)
-vwc$var<-"VWC"
+colnames(vwc)<-c("month","vwc","name","plotcode","dist")
+#vwc <- summarySE(vwc, measurevar="avg", groupvars=c("month","dist"),na.rm=T)
+#vwc$var<-"VWC"
 
 #combo<-rbind(ahc,vpc,vwc)
 #ggplot(combo, aes(x=month, y=avg, colour=factor(dist))) + 
   #geom_errorbar(aes(ymin=avg-se, ymax=avg+se), width=.1) +
   #geom_line() +
   #geom_point()+facet_grid(var~.)
-ahc$Distance<-factor(ahc$dist)
-grid2<-ggplot(ahc, aes(x=month, y=avg, colour=Distance)) + 
-  geom_errorbar(aes(ymin=avg-se, ymax=avg+se), width=.1) +
-  geom_line()+geom_point()+xlab("Month")+ylab("Absolute Humidity (g/m3)")+ggtitle("Monthly Absolute Humidity\nby Distance From Forest")+
-  theme(
-    plot.background = element_blank()
-    ,panel.background = element_blank()
-    ,panel.grid.major = element_blank()
-    ,panel.grid.minor = element_blank()
-    ,panel.border = element_blank()
-    ,axis.line.x = element_line(color = 'black')
-    ,axis.line.y = element_line(color = 'black')
-    ,text = element_text(size = 14)
-    ,axis.text.x=element_text(angle = 45,hjust=1)
-    ,legend.key = element_rect(colour = "white", fill = NA))
-ggsave(paste0(getwd(),"/Figures/AbsoluteHumidity.pdf"),grid2)
+#ahc$Distance<-factor(ahc$dist)
+#grid2<-ggplot(ahc, aes(x=month, y=avg, colour=Distance)) + 
+  #geom_errorbar(aes(ymin=avg-se, ymax=avg+se), width=.1) +
+#geom_line()+geom_point()+xlab("Month")+ylab("Absolute Humidity (g/m3)")+ggtitle("Monthly Absolute Humidity\nby Distance From Forest")+
+#theme_classic()
+#ggsave(paste0(getwd(),"/Figures/AbsoluteHumidity.pdf"),grid2)
 
-vpc$Distance<-factor(vpc$dist)
-grid3<-ggplot(vpc, aes(x=month, y=max, colour=Distance)) + 
-  geom_line() +
-  geom_point()+xlab("Month")+ylab("Vapour Pressure Deficit (hPa)")+ggtitle("Monthly Max Vapour Pressure Deficit\nby Distance From Forest")+
-  geom_errorbar(aes(ymin=max-se, ymax=max+se), width=.1)+theme(
-    plot.background = element_blank()
-    ,panel.background = element_blank()
-    ,panel.grid.major = element_blank()
-    ,panel.grid.minor = element_blank()
-    ,panel.border = element_blank()
-    ,axis.line.x = element_line(color = 'black')
-    ,axis.line.y = element_line(color = 'black')
-    ,text = element_text(size = 14)
-    ,axis.text.x=element_text(angle = 45,hjust=1)
-    ,legend.key = element_rect(colour = "white", fill = NA))
-ggsave(paste0(getwd(),"/Figures/VapourPressureDeficit.pdf"),grid3)
+#vpc$Distance<-factor(vpc$dist)
+#grid3<-ggplot(vpc, aes(x=month, y=max, colour=Distance)) + 
+#geom_line() +
+#geom_point()+xlab("Month")+ylab("Vapour Pressure Deficit (hPa)")+ggtitle("Monthly Max Vapour Pressure Deficit\nby Distance From Forest")+
+#geom_errorbar(aes(ymin=max-se, ymax=max+se), width=.1)+theme_classic()
+#ggsave(paste0(getwd(),"/Figures/VapourPressureDeficit.pdf"),grid3)
 
-vwc$Distance<-factor(vwc$dist)
-grid4<-ggplot(vwc, aes(x=month, y=avg, colour=Distance)) + 
-  geom_errorbar(aes(ymin=avg-se, ymax=avg+se), width=.1) +
-  geom_line() +
-  geom_point()+xlab("Month")+ylab("Volumetric Water Content (Fraction)")+ggtitle(paste0("Monthly Volumetric Water Content \nby Distance From Forest"))+
-  theme(
-    plot.background = element_blank()
-    ,panel.background = element_blank()
-    ,panel.grid.major = element_blank()
-    ,panel.grid.minor = element_blank()
-    ,panel.border = element_blank()
-    ,axis.line.x = element_line(color = 'black')
-    ,axis.line.y = element_line(color = 'black')
-    ,text = element_text(size = 14)
-    ,axis.text.x=element_text(angle = 45,hjust=1)
-    ,legend.key = element_rect(colour = "white", fill = NA))
-ggsave(paste0(getwd(),"/Figures/VolumetricWaterContent.pdf"),grid4)
+#vwc$Distance<-factor(vwc$dist)
+#grid4<-ggplot(vwc, aes(x=month, y=avg, colour=Distance)) + 
+  #geom_errorbar(aes(ymin=avg-se, ymax=avg+se), width=.1) +
+#geom_line() +
+#geom_point()+xlab("Month")+ylab("Volumetric Water Content (Fraction)")+ggtitle(paste0("Monthly Volumetric Water Content \nby Distance From Forest"))+
+#theme_classic()
+#ggsave(paste0(getwd(),"/Figures/VolumetricWaterContent.pdf"),grid4)
 
-pdf("Humidity_Figures.pdf",paper="special",width=11,height=6)
-grid.arrange(grid2,grid3,ncol=2)
-dev.off()
+#pdf("Humidity_Figures.pdf",paper="special",width=11,height=6)
+#grid.arrange(grid2,grid3,ncol=2)
+#dev.off()
 
 tmax<-do.call(rbind.data.frame,TMAX)
-colnames(tmax)<-c("month","max","name","plotcode","dist")
-tmax[tmax$max<0&!is.na(tmax$max),"max"]<-NA
-txc <- summarySE(tmax, measurevar="max", groupvars=c("month","dist"),na.rm=T)
+colnames(tmax)<-c("month","tmax","name","plotcode","dist")
+tmax[tmax$tmax<0&!is.na(tmax$tmax),"tmax"]<-NA
+#txc <- summarySE(tmax, measurevar="max", groupvars=c("month","dist"),na.rm=T)
 #ahc$var<-"AH"
 
 stmax<-do.call(rbind.data.frame,mxST)
-colnames(stmax)<-c("month","max","name","plotcode","dist")
-stxc <- summarySE(stmax, measurevar="max", groupvars=c("month","dist"),na.rm=T)
+colnames(stmax)<-c("month","stmax","name","plotcode","dist")
+#stxc <- summarySE(stmax, measurevar="max", groupvars=c("month","dist"),na.rm=T)
 
 tmin<-do.call(rbind.data.frame,TMIN)
-colnames(tmin)<-c("month","min","name","plotcode","dist")
-tmin[tmin$min<0&!is.na(tmin$min),"min"]<-NA
-tmc <- summarySE(tmin, measurevar="min", groupvars=c("month","dist"),na.rm=T)
+colnames(tmin)<-c("month","tmin","name","plotcode","dist")
+tmin[tmin$tmin<0&!is.na(tmin$tmin),"tmin"]<-NA
+#tmc <- summarySE(tmin, measurevar="min", groupvars=c("month","dist"),na.rm=T)
 #vpc$var<-"VPD"
 
 stmin<-do.call(rbind.data.frame,mnST)
-colnames(stmin)<-c("month","min","name","plotcode","dist")
-stmc <- summarySE(stmin, measurevar="min", groupvars=c("month","dist"),na.rm=T)
+colnames(stmin)<-c("month","stmin","name","plotcode","dist")
+#stmc <- summarySE(stmin, measurevar="min", groupvars=c("month","dist"),na.rm=T)
 
 tavg<-do.call(rbind.data.frame,TAVG)
-colnames(tavg)<-c("month","avg","name","plotcode","dist")
-tavg[tavg$avg<0&!is.na(tavg$avg),"avg"]<-NA
-tac <- summarySE(tavg, measurevar="avg", groupvars=c("month","dist"),na.rm=T)
+colnames(tavg)<-c("month","tavg","name","plotcode","dist")
+tavg[tavg$tavg<0&!is.na(tavg$tavg),"tavg"]<-NA
+#tac <- summarySE(tavg, measurevar="avg", groupvars=c("month","dist"),na.rm=T)
 #vwc$var<-"VWC"
 
 stavg<-do.call(rbind.data.frame,ST)
-colnames(stavg)<-c("month","avg","name","plotcode","dist")
-stac <- summarySE(stavg, measurevar="avg", groupvars=c("month","dist"),na.rm=T)
+colnames(stavg)<-c("month","stavg","name","plotcode","dist")
+#stac <- summarySE(stavg, measurevar="avg", groupvars=c("month","dist"),na.rm=T)
 
-txc$Distance<-factor(txc$dist)
-grid1<-ggplot(txc, aes(x=month, y=max, colour=Distance)) + 
-  geom_errorbar(aes(ymin=max-se, ymax=max+se), width=.1) +
-  geom_line() +
-  geom_point()+xlab("Month")+ylab("Maximum Temperature (C)")+ggtitle("Monthly Maximum Temperature by Distance From Forest")+
-  theme(
-    plot.background = element_blank()
-    ,panel.background = element_blank()
-    ,panel.grid.major = element_blank()
-    ,panel.grid.minor = element_blank()
-    ,panel.border = element_blank()
-    ,axis.line.x = element_line(color = 'black')
-    ,axis.line.y = element_line(color = 'black')
-    ,text = element_text(size = 14)
-    ,axis.text.x=element_text(angle = 45,hjust=1)
-    ,legend.key = element_rect(colour = "white", fill = NA))
+#txc$Distance<-factor(txc$dist)
+#grid1<-ggplot(txc, aes(x=month, y=max, colour=Distance)) + 
+#geom_errorbar(aes(ymin=max-se, ymax=max+se), width=.1) +
+#geom_line() +
+#geom_point()+xlab("Month")+ylab("Maximum Temperature (C)")+ggtitle("Monthly Maximum Temperature by Distance From Forest")+
+#theme_classic()
 
 
-tmc$Distance<-factor(tmc$dist)
-grid2<-ggplot(tmc, aes(x=month, y=min, colour=factor(dist))) + 
-  geom_errorbar(aes(ymin=min-se, ymax=min+se), width=.1) +
-  geom_line() +
-  geom_point()+xlab("Month")+ylab("Minimum Temperature (C)")+ggtitle("Monthly Minimum Temperature by Distance From Forest")+
-  theme(
-    plot.background = element_blank()
-    ,panel.background = element_blank()
-    ,panel.grid.major = element_blank()
-    ,panel.grid.minor = element_blank()
-    ,panel.border = element_blank()
-    ,axis.line.x = element_line(color = 'black')
-    ,axis.line.y = element_line(color = 'black')
-    ,text = element_text(size = 14)
-    ,axis.text.x=element_text(angle = 45,hjust=1)
-    ,legend.key = element_rect(colour = "white", fill = NA))
+#tmc$Distance<-factor(tmc$dist)
+#grid2<-ggplot(tmc, aes(x=month, y=min, colour=factor(dist))) + 
+#geom_errorbar(aes(ymin=min-se, ymax=min+se), width=.1) +
+#geom_line() +
+#geom_point()+xlab("Month")+ylab("Minimum Temperature (C)")+ggtitle("Monthly Minimum Temperature by Distance From Forest")+
+#theme_classic()
 
-tac$Distance<-factor(tac$dist)
-grid3<-ggplot(tac[tac$avg>20&!is.na(tac$avg),], aes(x=month, y=avg, colour=Distance)) + 
-  geom_errorbar(aes(ymin=avg-se, ymax=avg+se), width=.1) +
-  geom_line() +
-  geom_point()+xlab("Month")+ylab("Average Temperature (C)")+ggtitle(paste0("Monthly Average Temperature by Distance From Forest"))+
-  theme(
-    plot.background = element_blank()
-    ,panel.background = element_blank()
-    ,panel.grid.major = element_blank()
-    ,panel.grid.minor = element_blank()
-    ,panel.border = element_blank()
-    ,axis.line.x = element_line(color = 'black')
-    ,axis.line.y = element_line(color = 'black')
-    ,text = element_text(size = 14)
-    ,axis.text.x=element_text(angle = 45,hjust=1)
-    ,legend.key = element_rect(colour = "white", fill = NA))
-ggsave(paste0(getwd(),"/Figures/AverageTemperature.pdf"),grid3)
+#tac$Distance<-factor(tac$dist)
+#grid3<-ggplot(tac[tac$avg>20&!is.na(tac$avg),], aes(x=month, y=avg, colour=Distance)) + 
+#geom_errorbar(aes(ymin=avg-se, ymax=avg+se), width=.1) +
+# geom_line() +
+# geom_point()+xlab("Month")+ylab("Average Temperature (C)")+ggtitle(paste0("Monthly Average Temperature by Distance From Forest"))+
+# theme_classic()
+#ggsave(paste0(getwd(),"/Figures/AverageTemperature.pdf"),grid3)
 
-pdf("Temperature_Figures.pdf",paper="special",width=11,height=8)
-grid.arrange(grid1,grid2,grid3,ncol=2)
-dev.off()
+#pdf("Temperature_Figures.pdf",paper="special",width=11,height=8)
+#grid.arrange(grid1,grid2,grid3,ncol=2)
+#dev.off()
 
 #do soilT figures
-grid1<-ggplot(stxc, aes(x=month, y=max, colour=factor(dist))) + 
-  geom_errorbar(aes(ymin=max-se, ymax=max+se), width=.1) +
-  geom_line() +
-  geom_point()+xlab("Month")+ylab("Maximum Soil Temperature (C)")+ggtitle("Monthly Maximum Temperature by Distance From Forest")
+#grid1<-ggplot(stxc, aes(x=month, y=max, colour=factor(dist))) + 
+#geom_errorbar(aes(ymin=max-se, ymax=max+se), width=.1) +
+#  geom_line() +
+#  geom_point()+xlab("Month")+ylab("Maximum Soil Temperature (C)")+ggtitle("Monthly Maximum Temperature by Distance From Forest")
 
 
-grid2<-ggplot(stmc, aes(x=month, y=min, colour=factor(dist))) + 
-  geom_errorbar(aes(ymin=min-se, ymax=min+se), width=.1) +
-  geom_line() +
-  geom_point()+xlab("Month")+ylab("Minimum Soil Temperature (C)")+ggtitle("Monthly Minimum Temperature by Distance From Forest")
+#grid2<-ggplot(stmc, aes(x=month, y=min, colour=factor(dist))) + 
+#  geom_errorbar(aes(ymin=min-se, ymax=min+se), width=.1) +
+#  geom_line() +
+#  geom_point()+xlab("Month")+ylab("Minimum Soil Temperature (C)")+ggtitle("Monthly Minimum Temperature by Distance From Forest")
 
-stac$Distance<-factor(stac$dist)
-grid3<-ggplot(stac, aes(x=month, y=avg, colour=Distance)) + 
-  geom_errorbar(aes(ymin=avg-se, ymax=avg+se), width=.1) +
-  geom_line() +
-  geom_point()+xlab("Month")+ylab("Average Soil Temperature (C)")+ggtitle(paste0("Monthly Average Temperature by Distance From Forest"))+
-  theme(
-    plot.background = element_blank()
-    ,panel.background = element_blank()
-    ,panel.grid.major = element_blank()
-    ,panel.grid.minor = element_blank()
-    ,panel.border = element_blank()
-    ,axis.line.x = element_line(color = 'black')
-    ,axis.line.y = element_line(color = 'black')
-    ,text = element_text(size = 14)
-    ,axis.text.x=element_text(angle = 45,hjust=1)
-    ,legend.key = element_rect(colour = "white", fill = NA))
-ggsave(paste0(getwd(),"/Figures/SoilAverageTemperature.pdf"),grid3)
+#stac$Distance<-factor(stac$dist)
+#grid3<-ggplot(stac, aes(x=month, y=avg, colour=Distance)) + 
+#  geom_errorbar(aes(ymin=avg-se, ymax=avg+se), width=.1) +
+# geom_line() +
+#  geom_point()+xlab("Month")+ylab("Average Soil Temperature (C)")+ggtitle(paste0("Monthly Average Temperature by Distance From Forest"))+
+#  theme_classic()
+#ggsave(paste0(getwd(),"/Figures/SoilAverageTemperature.pdf"),grid3)
 
 
-pdf("SoilTemperature_Figures.pdf",paper="special",width=11,height=8)
-grid.arrange(grid1,grid2,grid3,ncol=2)
-dev.off()
-
-
+#pdf("SoilTemperature_Figures.pdf",paper="special",width=11,height=8)
+#grid.arrange(grid1,grid2,grid3,ncol=2)
+#dev.off()
 
 #combine metdata measures
-dF<-cbind(ah,tavg$avg,tmax$max,tmin$min,mvpd$max)
+dF<-cbind(ah,tavg$tavg,tmax$tmax,tmin$tmin,mvpd$mvpd)
 #canopy gap and microclimate measures
 m<-as.character(unique(ah[,3]))
 for(i in 1:length(m)){
@@ -492,6 +421,12 @@ for(i in 1:length(m)){
   
 }
 colnames(dF)<-c("month","ah","name","plotcode","dist","tavg","tmax","tmin","mvpd","Jan","Jun","Cavg")
+
+#add soilT and vwc
+dF <- left_join(dF,vwc %>% select(month,vwc,plotcode),by=c("month","plotcode"))
+dF <- left_join(dF,stavg %>% select(month,stavg ,plotcode),by=c("month","plotcode"))
+dF <- left_join(dF,stmax %>% select(month,stmax ,plotcode),by=c("month","plotcode"))
+dF <- left_join(dF,stmin %>% select(month,stmin ,plotcode),by=c("month","plotcode"))
 
 #write datasheet to csv
 write.csv(dF,paste0(getwd(),"/Monthly_metdata_withcanopygap.csv"))

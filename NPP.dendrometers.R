@@ -30,6 +30,11 @@ cf=10
 #open census dates
 d.ts<-read.csv(paste0(getwd(),"/",site,"/AGB/ForestPlots/census.dates.csv"))
 
+#load wood density values
+w.dens<-read.xls("/Volumes/ELDS/ECOLIMITS/R_codes/GlobalWoodDensityDatabase.xls",sheet="Data")
+w.dens<-data_frame(family=as.character(w.dens$Family),Binomial=as.character(w.dens$Binomial),wood_density_g_m2=as.numeric(w.dens$Wood.density..g.cm.3...oven.dry.mass.fresh.volume),Region=as.character(w.dens$Region))
+w.dens$genus <- str_split_fixed(w.dens$Binomial, " ",2)[,1]
+
 ## Correct for missing tree heights
 # missing height function
 h.est=function(dbh, h){
@@ -116,6 +121,27 @@ for(p in 1:length(trans)){
     DF$genus<-str_split_fixed(as.character(census[match(DF$tree_tag,census$Tag),"NSpecies"])," ",2)[,1]
     DF$species<-str_split_fixed(as.character(census[match(DF$tree_tag,census$Tag),"NSpecies"])," ",2)[,2]
     DF$date<-as.Date(paste(DF$year,DF$month,"01",sep="-"),format="%Y-%m-%d")
+    DF$Binomial<-paste(DF$genus,DF$species)
+    DF$ID<-1:nrow(DF)
+    
+    #match wood density for species
+    wds<-left_join(DF %>% select(family,Binomial),w.dens %>% filter(Region=="Africa (tropical)") %>% select(-family),by="Binomial")
+    wdens<-wds %>% group_by(family,Binomial) %>% summarise(wood_density_g_m2=mean(wood_density_g_m2,na.rm=T)) %>% ungroup()
+    #pull out genera from missing species
+    wdens$genus <- str_split_fixed(wdens$Binomial," ",2)[,1]
+    wdg<-left_join(wdens %>% select(genus),w.dens %>% select(family,genus,wood_density_g_m2),by="genus")
+    wdg <- wdg %>% group_by(genus) %>% summarise(gen.wood_density = mean(wood_density_g_m2,na.rm=T))
+    wdens <- left_join(wdens,wdg,by="genus")
+    wdens <- wdens %>% mutate(wood_density_g_m2=replace(wood_density_g_m2,is.na(wood_density_g_m2),gen.wood_density[is.na(wood_density_g_m2)]))
+    #pull out missing family
+    wdf <- wdens %>% filter(is.na(wood_density_g_m2))
+    wdf <- left_join(wdf %>% select(family),w.dens %>% select(family,wood_density_g_m2),by="family")
+    wdf <- wdf %>% group_by(family) %>% summarise(fam.wood_density = mean(wood_density_g_m2,na.rm=T)) %>% ungroup()
+    wdens <- left_join(wdens,wdf,by="family")
+    wdens <- wdens %>% mutate(wood_density_g_m2=replace(wood_density_g_m2,is.na(wood_density_g_m2),fam.wood_density[is.na(wood_density_g_m2)])) %>%
+      select(Binomial,wood_density_g_m2)
+    
+    DF <- left_join(DF,wdens,by="Binomial")
     
     final[[k]]<-DF
   }
