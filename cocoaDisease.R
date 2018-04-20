@@ -11,11 +11,11 @@ library(tidyverse)
 
 setwd("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/Disease")
 
-dates=c("Jan","Feb","Mar","Apr","May","June","July","Aug","Sept","Oct","Nov","Dec")
+#dates=c("Jan","Feb","Mar","Apr","May","June","July","Aug","Sept","Oct","Nov","Dec")
 #dates=c("June","Aug","Sept","Oct","Nov")
-#dates=c("Jan","Feb","Mar","Apr","May","June")
+dates=c("Jan","Feb","Mar","Apr","May","June")
 topics=c("(tree)","(CPD)")
-year<-"2016"
+year<-"2017"
 trans<-c("AB","HM","KA")
 ns<-read.csv("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/plots.csv")
 
@@ -194,11 +194,14 @@ write.csv(pdw2,paste0(getwd(),"/Monthly_disease.SP5_pertree.csv"))
 
 #calculate per tree seasonal incidence
 pdw$months<-1
-pertree.pset<-ddply(pdw[!is.na(pdw$season),],.(Plot,treeno,season),summarise,Creep=mean(Creep,na.rm=T),Mist=mean(Mist,na.rm=T),StB=mean(StB,na.rm=T),Tpods=sum(Tpods,na.rm=T)/sum(months),PropCPB=sum(NoCPB,na.rm=T)/sum(Tpods,na.rm=T),PropBP=sum(NoBP,na.rm=T)/sum(Tpods,na.rm=T),PropMammal=sum(Mammal,na.rm=T)/sum(Tpods,na.rm=T),SM=mean(SM,na.rm=T))
+pertree.pset <- pdw %>% filter(!is.na(season)) %>% group_by(Plot,treeno,season) %>% summarise(Creep=mean(Creep,na.rm=T),Mist=mean(Mist,na.rm=T),StB=mean(StB,na.rm=T),Tpods=sum(Tpods,na.rm=T)/sum(months),
+                                                                                              PropCPB=sum(NoCPB,na.rm=T)/sum(Tpods,na.rm=T),PropBP=sum(NoBP,na.rm=T)/sum(Tpods,na.rm=T),PropMammal=sum(Mammal,na.rm=T)/sum(Tpods,na.rm=T),
+                                                                                              SM=mean(SM,na.rm=T))
 write.csv(pertree.pset,paste0(getwd(),"/Seasonal_pertree.plot.disease.csv"))
 
 #calculate per plot monthly incidence
-tree.p<-ddply(pdw %>% filter(month>"2014-01-01"),.(Plot,month),summarise,Creep=mean(Creep,na.rm=T),Mist=mean(Mist,na.rm=T),StB=mean(StB,na.rm=T))
+tree.p<- pdw %>% filter(month>"2014-01-01") %>% group_by(Plot,month) %>% summarise(Creep=mean(Creep,na.rm=T),Mist=mean(Mist,na.rm=T),StB=mean(StB,na.rm=T))
+ 
 #add month variable
 #tree.p$month<-as.Date(round_date(as.Date(tree.p$Date),unit="month"))
 #plot incidence over season
@@ -232,7 +235,9 @@ pdw$Mammal<-as.numeric(as.character(pdw$Mammal))
 #write.csv(pod.p14,paste0(getwd(),"/Disease_HC1415podpests.csv"))
 
 #for pod pests, plot incidence over month
-pod.p<-ddply(pdw %>% filter(month>"2014-01-01"),.(Plot,month),summarise,Total.pods=sum(TsPods,TmPods,TlPods,na.rm=T),PropCPB=sum(NoCPB,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T),PropBP=sum(NoBP,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T),PropMammal=sum(Mammal,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T),iCPB=sum(iCPB*NoCPB,na.rm=T)/sum(NoCPB,na.rm=T),soil.moist=mean(SM,na.rm=T))
+pod.p <- pdw %>% filter(month>"2014-01-01") %>% group_by(Plot,month) %>% summarise(Total.pods=sum(TsPods,TmPods,TlPods,na.rm=T),
+                                                                                   PropCPB=sum(NoCPB,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T),PropBP=sum(NoBP,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T),
+                                                                                   PropMammal=sum(Mammal,na.rm=T)/sum(TsPods,TmPods,TlPods,na.rm=T),iCPB=sum(iCPB*NoCPB,na.rm=T)/sum(NoCPB,na.rm=T),soil.moist=mean(SM,na.rm=T))
 #add month
 #pod.p$month<-as.Date(round_date(as.Date(pod.p$month),unit="month"))
 #save dataset

@@ -8,7 +8,7 @@ library(reshape)
 setwd("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/Pollination")
 dates.1=c("June","July","Aug")
 dates.2=c("Jan","Feb","March","April","May","June","July","Aug")
-dates.3=c("June","July","Aug","Sept")
+dates.3=c("June","July","August","Sept")
 #dates=c("Jan")
 topic="Pollinator"
 year<-c("2014","2015","2016")
@@ -49,12 +49,31 @@ for(j in 1:length(p)){
   #combine final and final.2
   final[,9]<-0
   colnames(final)<-colnames(final.2)
-  final.1[[j]]<-rbind(final,final.2)
+  
+  final<-rbind(final,final.2)
+  
+  final.3<-data.frame(Date=as.Date(character()),Plot=character(),Tree=character(),Blue=numeric(),Yellow=numeric(),White=numeric(),Biomass=numeric(),Banana=numeric(),No_Banana=numeric(),stringsAsFactors=FALSE)
+  dataP.3<-read.xls(paste0(getwd(),"/Pollinators_revised ",year[3],".xlsx"), sheet=paste0(dates.3[1]," ",year[3]))
+  
+  final.3[1:3,1]<-as.Date(dataP.3[grep(p[j],as.character(dataP.3[,2])),1])
+  final.3[1:3,2:(length(dataP.3[1,])-1)]<-data.frame(lapply(dataP.3[grep(p[j],as.character(dataP.3[,2])),2:(length(dataP.3[1,])-1)], as.character), stringsAsFactors=FALSE)
+  
+  #if(length(w[as.character(w[1:length(w[,1]),8])!="DNS",8])==0) final[k,8]<-0
+  for(k in 2:length(dates.3)){
+    dataP.3<-read.xls(paste0(getwd(),"/Pollinators_revised ",year[3],".xlsx"), sheet=paste0(dates.3[k]," ",year[3]))
+    final.3[((k-1)*3+1):(k*3),1]<-as.Date(dataP.3[grep(gsub(" ","",p[j]),gsub(" ","",as.character(dataP.3[,2]))),1])
+    final.3[((k-1)*3+1):(k*3),2:(length(dataP.3[1,])-1)]<-data.frame(lapply(dataP.3[grep(gsub(" ","",p[j]),gsub(" ","",as.character(dataP.3[,2]))),2:(length(dataP.3[1,])-1)], as.character), stringsAsFactors=FALSE)
+  }
+  #combine final and final.2
+  colnames(final)<-colnames(final.3)
+  
+  final.1[[j]]<-rbind(final,final.3)
+  rm(final)
 }
 final<-do.call(rbind.data.frame,final.1)
 #replace DNS or "out of range"
-final[final$Biomass=="DNS","Biomass"]<-NA
-final[final$Banana=="DNS","Banana"]<-NA
+final[final$Biomass=="DNS"&!is.na(final$Biomass)|final$Biomass=="out of range"&!is.na(final$Biomass),"Biomass"]<-NA
+final[final$Banana=="DNS"&!is.na(final$Banana),"Banana"]<-NA
 
 write.csv(final,paste0(getwd(),"/Pollinator_",year[1],"_",year[2],".csv"))
 rm(dataP,dataP.1,dataP.2,final,final.2,final.1)
@@ -155,4 +174,5 @@ tmp2.3<-tmp2.2[tmp2.2$family==paste0(ids[8]),]
 tmp.1[,paste0(ids[8])]<-tmp2.3[match(interaction(tmp.1$Plot,tmp.1$month),interaction(tmp2.3$Plot,tmp2.3$date)),"Pollin.nos"]
 
 #write dataset
+tmp.1$Plot<-gsub(" ","",tmp.1$Plot)
 write.csv(tmp.1,paste0(getwd(),"/Pollination_monthlyvariables.csv"))

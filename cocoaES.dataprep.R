@@ -1,6 +1,6 @@
 #creation of dataset for analysis of cocoa ES benefits/dis-benefits
 library(stringr)
-library(corrplot)
+#library(corrplot)
 #library(plyr)
 library(gdata)
 library(lubridate)
@@ -16,11 +16,9 @@ ns<-read.csv("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/plots.csv")
 ns<-data_frame(Plot=gsub(" ","",ns$name3), distance=ns$distance,age=ns$age, distance.cont=ns$distance.1,
                Canopy.gap.dry=ns$Gap_Jan15,Canopy.gap.wet=ns$Gap_Jun15)
 
-
-
 #load soil data
 ES.soil<-read.csv(paste0(getwd(),"/Nutrients/Soils/Soil_nutrient_data.csv"))
-ES.soil<-data_frame(Transect=as.character(ES.soil$Transect),Plot=ES.soil$Plot.Number,N.pct=ES.soil$N.pct,C.pct=ES.soil$C.pct,CN.ratio=ES.soil$C.pct/ES.soil$N.pct,
+ES.soil<-data_frame(Transect=as.character(ES.soil$Transect),Plot=ES.soil$name1,N.pct=ES.soil$N.pct,C.pct=ES.soil$C.pct,CN.ratio=ES.soil$C.pct/ES.soil$N.pct,
                     pH=ES.soil$pH,Tot.P=ES.soil$Avail.P.ppm,K.meq=ES.soil$K.meq,Ca.meq=ES.soil$Ca.meq,Mg.meq=ES.soil$Mg.meq)
 
 #load yield data [Heavy Crop from Sept to June, Light Crop July & August]
@@ -28,7 +26,7 @@ ES.soil<-data_frame(Transect=as.character(ES.soil$Transect),Plot=ES.soil$Plot.Nu
 ES.yield.tree<-read.csv(paste0(getwd(),"/Yield/PerTree_Cropestimates.csv"))
 ES.yield.tree<- data_frame(Plot=gsub(" ","",ES.yield.tree$Plot),TreeNo=ES.yield.tree$TreeNo,HeavyCrop=ES.yield.tree$HeavyCrop,HCBlackpod=ES.yield.tree$HC.blackpod,
                            HCCapsid=ES.yield.tree$HC.capsid,LightCrop=ES.yield.tree$LightCrop,LCBlackpod=ES.yield.tree$LC.blackpod,LCCapsid=ES.yield.tree$LC.capsid,
-                           season=ES.yield.tree$season,Distance=ES.yield.tree$distance,Transect=ES.yield.tree$transect)
+                           season=as.character(ES.yield.tree$season),Distance=ES.yield.tree$distance,Transect=as.character(ES.yield.tree$transect))
 
 ES.yield <- ES.yield.tree %>% group_by(Plot,season) %>%
   summarise(HeavyCrop = median(HeavyCrop),LightCrop=median(LightCrop),Distance=mean(Distance),Transect=unique(Transect))
@@ -36,14 +34,14 @@ ES.yield <- ES.yield.tree %>% group_by(Plot,season) %>%
 #load pollinator data
 #ES.pollinos<-read.csv(paste0(getwd(),"/Pollination/Pollinator.nos.HC1415.csv"))
 #ES.pollinabund<-read.csv(paste0(getwd(),"/Pollination/Pollinator.diversity.HC1415.csv"))
-#ES.pollination<-read.csv(paste0(getwd(),"/Pollination/Pollination_monthlyvariables.csv"))
+ES.pollination<-read.csv(paste0(getwd(),"/Pollination/Pollination_monthlyvariables.csv"))
 #ES.pollination$year<-year(ES.pollination$month)
 #ES.pollination$months<-1
 
 #take mean for each plot (for 2014)
-#ES.pollin14<-ddply(ES.pollination[year(ES.pollination$Date)=="2014",],.(Plot),summarise,Biomass=mean(Biomass,na.rm=T),Banana=mean(Banana,na.rm=T),Pollin.nos=mean(Pollin.nos,na.rm=T)*sum(months),Pollin.div=mean(Pollin.div,na.rm=T),Sciaridae=mean(Sciaridae,na.rm=T)*sum(months))
-#ES.pollin15<-ddply(ES.pollination[year(ES.pollination$Date)=="2015",],.(Plot),summarise,Biomass=mean(Biomass,na.rm=T),Banana=mean(Banana,na.rm=T),Pollin.nos=mean(Pollin.nos,na.rm=T)*sum(months),Pollin.div=mean(Pollin.div,na.rm=T),Sciaridae=mean(Sciaridae,na.rm=T)*sum(months))
-#ES.pollin16<-ddply(ES.pollination[year(ES.pollination$Date)=="2016",],.(Plot),summarise,Biomass=mean(Biomass,na.rm=T),Banana=mean(Banana,na.rm=T),Pollin.nos=mean(Pollin.nos,na.rm=T)*sum(months),Pollin.div=mean(Pollin.div,na.rm=T),Sciaridae=mean(Sciaridae,na.rm=T)*sum(months))
+ES.pollin14<-ES.pollination %>% filter(year(Date)=="2014") %>% group_by(Plot) %>% summarise(Biomass=mean(Biomass,na.rm=T),Banana=mean(Banana,na.rm=T),Pollin.nos=mean(Pollin.nos,na.rm=T)*length(months),Pollin.div=mean(Pollin.div,na.rm=T),Sciaridae=mean(Sciaridae,na.rm=T)*length(months))
+ES.pollin15<-ES.pollination %>% filter(year(Date)=="2015") %>% group_by(Plot) %>% summarise(Biomass=mean(Biomass,na.rm=T),Banana=mean(Banana,na.rm=T),Pollin.nos=mean(Pollin.nos,na.rm=T)*length(months),Pollin.div=mean(Pollin.div,na.rm=T),Sciaridae=mean(Sciaridae,na.rm=T)*length(months))
+ES.pollin16<-ES.pollination %>% filter(year(Date)=="2016") %>% group_by(Plot) %>% summarise(Biomass=mean(Biomass,na.rm=T),Banana=mean(Banana,na.rm=T),Pollin.nos=mean(Pollin.nos,na.rm=T)*length(months),Pollin.div=mean(Pollin.div,na.rm=T),Sciaridae=mean(Sciaridae,na.rm=T)*length(months))
 
 #load disease data 
 #ES.disease<-read.csv(paste0(getwd(),"/Disease/Seasonal_meanpestincidence.csv"))
@@ -129,13 +127,13 @@ ES.metdata<-read.csv(paste0(getwd(),"/MetData/MonthlyStress_estimates.csv"))
 ES.metdata<-data_frame(Plot=ES.metdata$Plot,month=as.Date(ES.metdata$month),Tmax=ES.metdata$maxT,Tmin=ES.metdata$minT,Tmean=ES.metdata$meanT,maxVPD=ES.metdata$maxVPD,meanRH=ES.metdata$meanRH,stress.mm=ES.metdata$stress.mm,stress.mm1=ES.metdata$stress.mm.1)
 
 #get vegetation stress data for each year
-ES.metdata14<-ES.metdata %>% filter(month<="2015-01-01") %>% group_by(Plot) %>%
+ES.metdata14<-ES.metdata %>% filter(month<="2015-06-01") %>% group_by(Plot) %>%
   summarise(Tmax=mean(Tmax,na.rm=T),Tmin=mean(Tmin,na.rm=T),Tmean=mean(Tmean,na.rm=T),maxVPD=mean(maxVPD,na.rm=T),meanRH=mean(meanRH,na.rm=T),stress.mm=mean(stress.mm,na.rm=T),stress.mm1=mean(stress.mm1,na.rm=T))
 
-ES.metdata15<-ES.metdata %>% filter(month<="2016-01-01"&month>"2015-01-01") %>% group_by(Plot) %>%
+ES.metdata15<-ES.metdata %>% filter(month<="2016-06-01"&month>"2015-06-01") %>% group_by(Plot) %>%
   summarise(Tmax=mean(Tmax,na.rm=T),Tmin=mean(Tmin,na.rm=T),Tmean=mean(Tmean,na.rm=T),maxVPD=mean(maxVPD,na.rm=T),meanRH=mean(meanRH,na.rm=T),stress.mm=mean(stress.mm,na.rm=T),stress.mm1=mean(stress.mm1,na.rm=T))
 
-ES.metdata16<-ES.metdata %>% filter(month>"2016-01-01") %>% group_by(Plot) %>%
+ES.metdata16<-ES.metdata %>% filter(month>"2016-06-01") %>% group_by(Plot) %>%
   summarise(Tmax=mean(Tmax,na.rm=T),Tmin=mean(Tmin,na.rm=T),Tmean=mean(Tmean,na.rm=T),maxVPD=mean(maxVPD,na.rm=T),meanRH=mean(meanRH,na.rm=T),stress.mm=mean(stress.mm,na.rm=T),stress.mm1=mean(stress.mm1,na.rm=T))
 
 #ES.flower<-ddply(ES.metdata1,.(Plot),summarise,maxT=mean(maxT),minT=mean(minT),meanT=mean(meanT),maxVPD=mean(maxVPD),stress.mm=sum(stress.mm.1),stress.days=max(stress.daysinarow))
@@ -222,11 +220,15 @@ d.F.16.tree<-left_join(d.F.16.tree,ES.fruit16,by="Plot")
 rm(ES.fruit14,ES.fruit15,ES.fruit16,ES.fruitset)
 
 #add pollinator data
-#d.F.14[,(ncol(d.F.14)+1):(ncol(d.F.14)+ncol(ES.pollin14)-1)]<-ES.pollin14[match(d.F.14$Plot,gsub(" ","",ES.pollin14$Plot)),2:ncol(ES.pollin14)]
-#d.F.15[,(ncol(d.F.15)+1):(ncol(d.F.15)+ncol(ES.pollin15)-1)]<-ES.pollin15[match(d.F.15$Plot,gsub(" ","",ES.pollin15$Plot)),2:ncol(ES.pollin15)]
-#d.F.14.tree[,(ncol(d.F.14.tree)+1):(ncol(d.F.14.tree)+ncol(ES.pollin14)-1)]<-ES.pollin14[match(d.F.14.tree$Plot,ES.pollin14$Plot),2:ncol(ES.pollin14)]
-#d.F.15.tree[,(ncol(d.F.15.tree)+1):(ncol(d.F.15.tree)+ncol(ES.pollin15)-1)]<-ES.pollin15[match(d.F.15.tree$Plot,ES.pollin15$Plot),2:ncol(ES.pollin15)]
-#rm(ES.pollin14,ES.pollin15,ES.pollination)
+d.F.14<-left_join(d.F.14,ES.pollin14,by="Plot")
+d.F.15<-left_join(d.F.15,ES.pollin15,by="Plot")
+d.F.16<-left_join(d.F.16,ES.pollin16,by="Plot")
+
+d.F.14.tree<-left_join(d.F.14.tree,ES.pollin14,by="Plot")
+d.F.15.tree<-left_join(d.F.15.tree,ES.pollin15,by="Plot")
+d.F.16.tree<-left_join(d.F.16.tree,ES.pollin16,by="Plot")
+
+rm(ES.pollin14,ES.pollin15,ES.pollination)
 
 #add disease data
 d.F.14<- left_join(d.F.14,ES.pdisease14,by="Plot")
@@ -269,5 +271,54 @@ write.csv(d.F.14.tree,paste0(getwd(),"/Analysis/ES/ES_analysis_dataset_ptree.201
 write.csv(d.F.15.tree,paste0(getwd(),"/Analysis/ES/ES_analysis_dataset_ptree.2015.csv"))
 write.csv(d.F.16.tree,paste0(getwd(),"/Analysis/ES/ES_analysis_dataset_ptree.2016.csv"))
 
+#combine final datasets
 
+l.bor<-read_csv(paste0(getwd(),"/HouseholdData/Labour.csv"))
+y.ld<-read_csv(paste0(getwd(),"/HouseholdData/PastHarvest.csv"))
+f.rt<-read_csv(paste0(getwd(),"/HouseholdData/Fertiliser.csv"))
+f.rt$Plot.Number<-f.rt$`Plot Number`
+#take average per plot
+l.bor1 <- l.bor %>% group_by(plot) %>% summarise(Labour.harvesting=mean(Labour.harvesting),Labour.weeding=mean(Labour.weeding),Harvesting.months=mean(Harvesting.months),Weedings.months=mean(Weedings.months))
+y.ld1 <- y.ld %>% group_by(plot) %>% summarise(Yield.cv=mean(as.numeric(as.character(Yield.cv)),na.rm=T)) %>% 
+  mutate(Yield.cv=replace(Yield.cv,is.na(Yield.cv),0))
+f.rt1 <- f.rt %>% group_by(Plot.Number) %>% summarise(No.applications.yr=mean(No.applications.5yrs,na.rm=T)/5,Applied.1516=mean(Applied.1516,na.rm=T),Solid.N.ha=mean(Solid.N.ha,na.rm=T),
+                                                      Solid.P.ha=mean(Solid.P.ha,na.rm=T),Solid.K.ha=mean(Solid.K.ha,na.rm=T),App.rate.espa=mean(App.rate.espa,na.rm=T)) %>%
+  mutate(No.applications.yr=replace(No.applications.yr,is.na(No.applications.yr),0),Applied.1516=replace(Applied.1516,is.na(Applied.1516),0),Solid.N.ha=replace(Solid.N.ha,is.na(Solid.N.ha),0),
+         Solid.P.ha=replace(Solid.P.ha,is.na(Solid.P.ha),0),Solid.K.ha=replace(Solid.K.ha,is.na(Solid.K.ha),0),App.rate.espa=replace(App.rate.espa,is.na(App.rate.espa),0)) %>%
+  rename(plot=Plot.Number)
 
+year<-c("2014","2015","2016")
+combo<-list()
+for(i in 1:length(year)){
+  d.F.plot <- read_csv(paste0(getwd(),"/Analysis/ES/ES_analysis_dataset.",year[i],".csv"))
+  d.F.plot <- d.F.plot %>% rename(plot=Plot)
+  d.F.plot <- distinct(d.F.plot, plot, .keep_all = TRUE)
+  combo[[i]] <- d.F.plot %>% select(plot,season,HeavyCrop,LightCrop,PropCPB,PropBP,Biomass,Distance,distance.cont,Cocoa.density,Shade.density,Canopy.gap.dry,CN.ratio,pH,soil.moist,Tmax,Tmin,maxVPD)
+ 
+  d.F.plot <- left_join(d.F.plot,l.bor1 %>% select(plot,Labour.harvesting,Harvesting.months,Labour.weeding,Weedings.months), by="plot")
+  d.F.plot <- left_join(d.F.plot,y.ld1 %>% select(plot,Yield.cv),by="plot")
+  d.F.plot <- left_join(d.F.plot,f.rt1,by="plot")
+  
+  #make sure binary variables are factors
+  d.F.plot$Fertliser.bin<-0
+  d.F.plot[d.F.plot$Fertiliser>0,"Fertliser.bin"]<-1
+  d.F.plot$Fertliser.bin<-factor(d.F.plot$Fertliser.bin)
+  d.F.plot$Compost.bin<-0
+  d.F.plot[d.F.plot$Compost>0,"Compost.bin"]<-1
+  d.F.plot$Compost.bin<-factor(d.F.plot$Compost.bin)
+  d.F.plot$treat<-factor(d.F.plot$treat)
+  
+  #save dataset for subsequent modeling
+  write.csv(d.F.plot,paste0(getwd(),"/Analysis/ES/Yield_dataset.",year[i],".csv"))
+}
+yield_all<-do.call(rbind.data.frame,combo)
+
+#take anomalies per plot
+yield_mean <- yield_all %>% group_by(plot) %>% summarise(m.HeavyCrop=mean(HeavyCrop,na.rm=T),m.LightCrop=mean(LightCrop,na.rm=T),
+                                                        m.PropCPB=mean(PropCPB,na.rm=T),m.PropBP=mean(PropBP,na.rm=T))
+
+yield_all <- left_join(yield_all,yield_mean,by="plot")
+yield_all <- yield_all %>% mutate(anom_heavycrop=HeavyCrop-m.HeavyCrop,anom_lightcrop=LightCrop-m.LightCrop,anom_cpb=PropCPB-m.PropCPB,
+                                  anom_bp=PropBP-m.PropBP)
+write_csv(yield_all,paste0(getwd(),"/Analysis/ES/Yield_anomalies.csv"))
+  

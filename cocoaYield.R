@@ -630,7 +630,7 @@ ggsave(paste0(getwd(),"/Analysis/ElNino/Yield.lc.capsid_pertree_transect.seasons
 
 #create figures for each plot
 ggplot(y3, aes(season,HeavyCrop))+geom_boxplot(aes(color=transect))+facet_wrap(~Plot,ncol=6)+
-  theme_classic() + ylab("Heavy Crop [kg/tree]")
+  theme_classic() + ylab("Heavy Crop [kg/tree]") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ggsave(paste0(getwd(),"/Analysis/ElNino/Yield_pertree_plot.seasons.comparison.pdf"))
 
 ggplot(y6, aes(Month,Monthly.harvest.tree))+geom_line(aes(color=Plot))+facet_wrap(~transect,ncol=1)+
