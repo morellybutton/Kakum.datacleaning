@@ -24,12 +24,12 @@ ES.soil<-data_frame(Transect=as.character(ES.soil$Transect),Plot=ES.soil$name1,N
 #load yield data [Heavy Crop from Sept to June, Light Crop July & August]
 #ES.yield<-read.csv(paste0(getwd(),"/Yield/Plot_Cropestimates.csv"))
 ES.yield.tree<-read.csv(paste0(getwd(),"/Yield/PerTree_Cropestimates.csv"))
-ES.yield.tree<- data_frame(Plot=gsub(" ","",ES.yield.tree$Plot),TreeNo=ES.yield.tree$TreeNo,HeavyCrop=ES.yield.tree$HeavyCrop,HCBlackpod=ES.yield.tree$HC.blackpod,
+ES.yield.tree<- data_frame(Plot=gsub(" ","",ES.yield.tree$Plot),TreeNo=ES.yield.tree$TreeNo,DBH=ES.yield.tree$DBH,HeavyCrop=ES.yield.tree$HeavyCrop,HCBlackpod=ES.yield.tree$HC.blackpod,
                            HCCapsid=ES.yield.tree$HC.capsid,LightCrop=ES.yield.tree$LightCrop,LCBlackpod=ES.yield.tree$LC.blackpod,LCCapsid=ES.yield.tree$LC.capsid,
                            season=as.character(ES.yield.tree$season),Distance=ES.yield.tree$distance,Transect=as.character(ES.yield.tree$transect))
-
-ES.yield <- ES.yield.tree %>% group_by(Plot,season) %>%
-  summarise(HeavyCrop = median(HeavyCrop),LightCrop=median(LightCrop),Distance=mean(Distance),Transect=unique(Transect))
+ES.yield.tree <- ES.yield.tree %>% mutate(tree_size="large") %>% mutate(tree_size=replace(tree_size,DBH<10,"small"))
+ES.yield <- ES.yield.tree %>% group_by(Plot,season,tree_size) %>%
+  summarise(HeavyCrop = median(HeavyCrop),LightCrop=median(LightCrop),Distance=mean(Distance),Transect=unique(Transect),no.tree=length(tree_size)) %>% filter(no.tree>=5)
 
 #load pollinator data
 #ES.pollinos<-read.csv(paste0(getwd(),"/Pollination/Pollinator.nos.HC1415.csv"))
@@ -162,7 +162,7 @@ ES.management<-ES.manage %>% replace_na(list(Cocoa.kg.ha.2015=0,Total.cocoa.kg=0
                                   Elephants.Severity=0))
 
 ES.management<-left_join(ES.management,ns %>% select(Plot,age,distance.cont,Canopy.gap.dry,Canopy.gap.wet),by="Plot")
-
+ES.management <- distinct(ES.management,Plot,.keep_all=T)
 #write.csv(ES.management,paste0(getwd(),"/Analysis/ES/Management.variables.csv"))
 
 #add seasonal yield measures
@@ -292,13 +292,13 @@ combo<-list()
 for(i in 1:length(year)){
   d.F.plot <- read_csv(paste0(getwd(),"/Analysis/ES/ES_analysis_dataset.",year[i],".csv"))
   d.F.plot <- d.F.plot %>% rename(plot=Plot)
-  d.F.plot <- distinct(d.F.plot, plot, .keep_all = TRUE)
+  #d.F.plot <- distinct(d.F.plot, plot, .keep_all = TRUE)
   
   d.F.plot <- left_join(d.F.plot,l.bor1 %>% select(plot,Labour.harvesting,Harvesting.months,Labour.weeding,Weedings.months), by="plot")
   d.F.plot <- left_join(d.F.plot,y.ld1 %>% select(plot,Yield.cv),by="plot")
   d.F.plot <- left_join(d.F.plot,f.rt1,by="plot")
   
-  combo[[i]] <- d.F.plot %>% select(plot,Transect,season,HeavyCrop,LightCrop,PropCPB,PropBP,Mist,Biomass,Distance,distance.cont,Cocoa.density,Shade.density,Shannoni,BALegume,Canopy.gap.dry,CN.ratio,Tot.P,K.meq,pH,soil.moist,Tmax,Tmin,maxVPD,Chset,SBT,No.applications.yr)
+  combo[[i]] <- d.F.plot %>% select(plot,Transect,tree_size,season,HeavyCrop,LightCrop,PropCPB,PropBP,Mist,Biomass,Distance,distance.cont,Cocoa.density,Shade.density,Shannoni,BALegume,Canopy.gap.dry,CN.ratio,Tot.P,K.meq,pH,soil.moist,Tmax,Tmin,maxVPD,Chset,SBT,No.applications.yr)
   
   #make sure binary variables are factors
   d.F.plot$Fertliser.bin<-0
@@ -315,10 +315,10 @@ for(i in 1:length(year)){
 yield_all<-do.call(rbind.data.frame,combo)
 
 #take anomalies per plot
-yield_mean <- yield_all %>% group_by(plot) %>% summarise(m.HeavyCrop=mean(HeavyCrop,na.rm=T),m.LightCrop=mean(LightCrop,na.rm=T),
+yield_mean <- yield_all %>% group_by(plot,tree_size) %>% summarise(m.HeavyCrop=mean(HeavyCrop,na.rm=T),m.LightCrop=mean(LightCrop,na.rm=T),
                                                         m.PropCPB=mean(PropCPB,na.rm=T),m.PropBP=mean(PropBP,na.rm=T))
 
-yield_all <- left_join(yield_all,yield_mean,by="plot")
+yield_all <- left_join(yield_all,yield_mean,by=c("plot","tree_size"))
 yield_all <- yield_all %>% mutate(anom_heavycrop=HeavyCrop-m.HeavyCrop,anom_lightcrop=LightCrop-m.LightCrop,anom_cpb=PropCPB-m.PropCPB,
                                   anom_bp=PropBP-m.PropBP)
 
