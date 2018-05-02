@@ -473,6 +473,7 @@ final$mam_kg<-rowSums(cbind(c.f[c.f$SizeClass=="Small","BeanBiomass"]/1000*as.nu
 final<-final[!is.na(final$plot),]
 #write to csv
 write.csv(final,paste0(getwd(),"/Yield/Monthly_podremovals.csv"))
+
 #compare per tree measures from 2014 and 2015
 tree.c<-read.csv(paste0(getwd(),"/Yield/Monthly_podremovals.csv"))
 no<-as.character(tree.c$treeno)
@@ -481,8 +482,8 @@ tree.c$treenum<-str_split_fixed(no," ", 2)[,1]
 #add date
 tree.c$date<-as.Date(paste(1,month(tree.c$month,label=T),tree.c$year,sep="-"),format="%d-%b-%Y")
 #pull out subplot 5 measures for comparison with pollination experiment
-tmp<-tree.c[tree.c$treenum=="9" | tree.c$treenum=="10",]
-write.csv(tmp,paste0(getwd(),"/Yield/Monthly_podremovals_SP5.csv"))
+#tmp<-tree.c[tree.c$treenum=="9" | tree.c$treenum=="10",]
+#write.csv(tmp,paste0(getwd(),"/Yield/Monthly_podremovals_SP5.csv"))
 
 #calculate per tree 2014/15 heavy crop values (Sept-June) 
 #calculate monthly harvest as well as seasonal
@@ -502,6 +503,7 @@ for(i in 1:length(plts)){
   x1<-tree.c[tree.c$plot==plts[i],]
   
   census   <- data.frame(lapply(read.csv(paste0(getwd(),"/AGB/ForestPlots/",gsub(" ","",plts[i]),"_LS.csv")) , as.character),stringsAsFactors=F)
+  census_ss   <- data.frame(lapply(read.csv(paste0(getwd(),"/AGB/ForestPlots/",gsub(" ","",plts[i]),"_SS.csv")) , as.character),stringsAsFactors=F)
   #colnames(census)<-c("X","Subplot","x.coord","y.coord","Tag","Fam","Genus", "Species","DBH1", "DBH2","POM","Height","TreeCodes","Notes", "PlotCode", "PlotNum","OrigSpecies","NSpecies","NFam","THeight")         
   #no.cocoa1 <- nrow(census[census$NSpecies=="Theobroma cacao"&as.numeric(census$DBH2)>10&!is.na(census$DBH2),])/0.36
   #no.cocoa2 <- nrow(census[census$NSpecies=="Theobroma cacao"&as.numeric(census$DBH3)>10&!is.na(census$DBH3),])/0.36
@@ -509,46 +511,62 @@ for(i in 1:length(plts)){
   #ind<-grep("Plot",tmp[,1])
   #if(length(ind)>1) tmp<-tmp[3:(ind[2]-1),] else tmp<-tmp[3:nrow(tmp),]
   #pull out cocoa trees per plot
-   
-  y2<-data.frame(Plot=character(),Month=character(),No.cocoatrees=numeric(),Prop.tree=numeric(),Monthly.harvest.tree=numeric(),Monthly.harvest.blackpod.tree=numeric(),Monthly.harvest.capsid.tree=numeric(),Monthly.harvest.ha=numeric(),Monthly.harvest.blackpod.ha=numeric(),Monthly.harvest.capsid.ha=numeric(),Monthly.med.harvest.ha=numeric(),Monthly.med.harvest.blackpod.ha=numeric(),Monthly.med.harvest.capsid.ha=numeric(),stringsAsFactors=F)
+  
+  #pull out DBH for DMT
+  dbh<-census[grep("DMT",census$CensusNotes),] 
+  dbh$treeno <- as.numeric(str_split_fixed(dbh$CensusNotes,"DMT ",2)[,2])
+  x1<-left_join(x1,dbh %>% select(treeno,DBH2),by="treeno")
+  x1$dbh<-as.numeric(x1$DBH2)/10
+  
+  y2<-data.frame(Plot=character(),Month=character(),No.cocoatrees=numeric(),No.sm_cocoatrees=numeric(),No.l_diseastrees=numeric(),No.sm_diseasetrees=numeric(),
+                 Monthly.harvest.l_tree=numeric(),Monthly.harvest.s_tree=numeric(),Monthly.harvest.blackpod.l_tree=numeric(),
+                 Monthly.harvest.blackpod.s_tree=numeric(),Monthly.harvest.capsid.l_tree=numeric(),Monthly.harvest.capsid.s_tree=numeric(),
+                 Monthly.harvest.l_ha=numeric(),Monthly.harvest.s_ha=numeric(),Monthly.harvest.blackpod.l_ha=numeric(),Monthly.harvest.blackpod.s_ha=numeric(),
+                 Monthly.harvest.capsid.l_ha=numeric(),Monthly.harvest.capsid.s_ha=numeric(),Monthly.med.l_harvest.ha=numeric(),Monthly.med.s_harvest.ha=numeric(),
+                 Monthly.med.harvest.blackpod.l_ha=numeric(),Monthly.med.harvest.blackpod.s_ha=numeric(),
+                 Monthly.med.harvest.capsid.l_ha=numeric(),Monthly.med.harvest.capsid.s_ha=numeric(),stringsAsFactors=F)
   for(k in 1:length(months)){
     #pull out live cocoa trees for yield estimate
     n<-census[grep("Theobroma",census$NSpecies),]
+    
+    x2<-x1[x1$date==months[k],]
+    if(nrow(x2)==0) next
     #remove NAs
     #n<-n[!is.na(n)]
     #pull out DMT to get DBH
-    d<-n[grep("DMT",n$CensusNotes),]
-    d$DMT<-str_split_fixed(d$CensusNotes, " ", 2)[,2]
-    d$DMT<-str_split_fixed(d$DMT,",",2)[,1]
-    if(year(months[k])<2016) n[is.na(as.numeric(n$DBH)),"Flag1"]<-0 else n$DBH<-n$DBH3
-    n<-n[!is.na(as.numeric(n$DBH)),]
-    n<-n[as.numeric(n$DBH)>10,]
-    n.1<-nrow(n[grep("0",n$Flag1,invert=T),])
+    if(year(unique(x2$date))<"2017") {n<-n[!is.na(as.numeric(n$DBH2)),]; n<-n[as.numeric(n$DBH2)>100,]; n.1<-nrow(n[grep("0",n$Flag1.1,invert=T),])
+    } else { 
+      n<-n[!is.na(as.numeric(n$DBH3)),]; n<-n[as.numeric(n$DBH3)>100,]; n.1<-nrow(n[grep("0",n$Flag1,invert=T),]) }
     rm(n)
     
+    n_ss<-census_ss[grep("Theobroma",census_ss$NSpecies),]
+    if(year(unique(x2$date))<"2017") { n_ss<-n_ss[!is.na(as.numeric(n_ss$DBH2)),] ; n_ss.1<-nrow(n_ss[grep("0",n_ss$Flag1.1,invert=T),])
+    } else { n_ss<-n_ss[!is.na(as.numeric(n_ss$DBH3)),] ;  n_ss.1<-nrow(n_ss[grep("0",n_ss$Flag1,invert=T),]) }
+    rm(n_ss)
     #for(j in 1:length(no)){
     #No<-str_split_fixed(x1$treeno," ",2)
-    x2<-x1[x1$date==months[k],]
-    n<-n.1/0.36 
+    #divide by area (0.36 for large trees and 5*0.1*0.1 for small trees)
+    n <- n.1/0.36
+    n_ss <- n_ss.1/0.05
     
     #find proportion of trees being harvested
-    harv_tree <- x2 %>% filter(harvest_kg>0) %>% nrow()/18
-    
-    #take mean per tree harvest, bp and cpb loss
-    m.harv<-mean(x2$harvest_kg,na.rm=T)
-    m.bp<-mean(x2$bp_kg,na.rm=T)
-    m.cpb<-mean(x2$cpb_kg,na.rm=T)
+    #harv_tree <- x2 %>% filter(harvest_kg>0) %>% nrow()/18
+    x2 <- x2 %>% mutate(t_size="large") %>% mutate(t_size=replace(t_size,dbh<10,"small"))
+    #take mean per large and small tree harvest, bp and cpb loss
+    m.harv <- x2 %>% group_by(t_size) %>% summarise(harvest_kg=mean(harvest_kg,na.rm=T)) %>% spread(key="t_size",value="harvest_kg")
+    m.bp <- x2 %>% group_by(t_size) %>% summarise(bp_kg=mean(bp_kg,na.rm=T)) %>% spread(key="t_size",value="bp_kg")
+    m.cpb <- x2 %>% group_by(t_size) %>% summarise(cpb_kg=mean(cpb_kg,na.rm=T))  %>% spread(key="t_size",value="cpb_kg")
    
     #take median per tree harvest, bp and cpb loss (in case of skew)
-    med.harv<-median(x2$harvest_kg,na.rm=T)
-    med.bp<-median(x2$bp_kg,na.rm=T)
-    med.cpb<-median(x2$cpb_kg,na.rm=T)
+    med.harv <- x2 %>% group_by(t_size) %>% summarise(harvest_kg=median(harvest_kg,na.rm=T)) %>% spread(key="t_size",value="harvest_kg")
+    med.bp <- x2 %>% group_by(t_size) %>% summarise(bp_kg=median(bp_kg,na.rm=T)) %>% spread(key="t_size",value="bp_kg")
+    med.cpb <- x2 %>% group_by(t_size) %>% summarise(cpb_kg=median(cpb_kg,na.rm=T)) %>% spread(key="t_size",value="cpb_kg")
     
     y2[k,1:2]<-cbind(as.character(plts[i]),as.character(months[k]))
-    y2[k,3:7] <-cbind(n,harv_tree,m.harv,m.bp,m.cpb)
+    y2[k,3:12] <-cbind(n,n_ss,nrow(x2 %>% filter(t_size=="large")),nrow(x2 %>% filter(t_size=="small")),m.harv,m.bp,m.cpb)
     #calculate per ha yield, depending on year
-    y2[k,8:10]<-cbind(m.harv*n,m.bp*n,m.cpb*n)
-    y2[k,11:13]<-cbind(med.harv*n,med.bp*n,med.cpb*n)
+    y2[k,13:18]<-cbind(m.harv[1]*n,m.harv[2]*n_ss,m.bp[1]*n,m.bp[2]*n_ss,m.cpb[1]*n,m.cpb[2]*n_ss)
+    y2[k,19:24]<-cbind(med.harv[1]*n,med.harv[2]*n_ss,med.bp[1]*n,med.bp[2]*n_ss,med.cpb[1]*n,med.cpb[2]*n_ss)
     #}
     
   }
@@ -557,12 +575,12 @@ for(i in 1:length(plts)){
    
  #sum each tree separately
   no<-as.character(unique(x1$treeno))
-  No<-str_split_fixed(no, " ", 2)
+  #No<-str_split_fixed(no, " ", 2)
  
-  no<-paste0(as.character(unique(x1$treenum))," ")
-  x1$treenum<-paste0(x1$treenum," ")
+  #no<-paste0(as.character(unique(x1$treenum))," ")
+  #x1$treenum<-paste0(x1$treenum," ")
   y1<-list()
-  y2<-data.frame(Plot=character(),TreeNo=character(),DBH=numeric(),No.1=numeric(),HeavyCrop=numeric(),HC.blackpod=numeric(),HC.capsid=numeric(),LightCrop=numeric(),LC.blackpod=numeric(),LC.capsid=numeric(),stringsAsFactors=F)
+  y2<-data.frame(Plot=character(),TreeNo=character(),DBH=numeric(),HeavyCrop=numeric(),HC.blackpod=numeric(),HC.capsid=numeric(),LightCrop=numeric(),LC.blackpod=numeric(),LC.capsid=numeric(),stringsAsFactors=F)
   for(k in 1:length(season)){
     for(j in 1:length(no)){
       #No<-str_split_fixed(x1$treeno," ",2)
@@ -571,13 +589,13 @@ for(i in 1:length(plts)){
       #hc1.5<-x2[x2$year==year[1]|x2$year<=year[2]&x2$month<3,]
       lc.1<-x2[x2$date>as.Date(paste(year[k+1],"06","01",sep="-"))&x2$date<as.Date(paste(year[k+1],"10","01",sep="-")),]
       #hc.2<-x2[x2$year==year[k+1]&x2$month>=10|x2$year==year[3]&x2$month<7,]
-      dbh<-as.numeric(d[d$DMT==gsub(" ","",no[j]),"DBH2"])/10
+      #dbh<-as.numeric(d[d$DMT==gsub(" ","",no[j]),"DBH2"])/10
       #if no DBH put in NA
-      if(length(dbh)==0) dbh<-mean(as.numeric(d$DBH2),na.rm=T)/10
-      y2[j,1:4]<-cbind(as.character(plts[i]),as.character(no[j]),dbh,n.1)
+      #if(length(dbh)==0) dbh<-mean(as.numeric(d$DBH2),na.rm=T)/10
+      y2[j,1:3]<-cbind(as.character(plts[i]),as.character(no[j]),x2[1,"dbh"])
       #calculate per tree yield
-      y2[j,5:10]<-cbind(sum(as.numeric(hc.1$harvest_kg),na.rm=T),sum(as.numeric(hc.1$bp_kg),na.rm=T),sum(as.numeric(hc.1$cpb_kg),na.rm=T),sum(lc.1$harvest_kg,na.rm=T),sum(as.numeric(lc.1$bp_kg),na.rm=T),sum(as.numeric(lc.1$cpb_kg),na.rm=T))
-      rm(hc.1,lc.1,dbh,x2,No)
+      y2[j,4:9]<-cbind(sum(as.numeric(hc.1$harvest_kg),na.rm=T),sum(as.numeric(hc.1$bp_kg),na.rm=T),sum(as.numeric(hc.1$cpb_kg),na.rm=T),sum(lc.1$harvest_kg,na.rm=T),sum(as.numeric(lc.1$bp_kg),na.rm=T),sum(as.numeric(lc.1$cpb_kg),na.rm=T))
+      rm(hc.1,lc.1,dbh,x2)
     }
     y2$season<-paste0(year[k],"/",gsub("20","",year[k+1]))
     y1[[k]]<-y2
@@ -589,6 +607,7 @@ y6$name1<-gsub(" ","",y6$Plot)
 #plots$name1<-gsub(" ","",plots$name3)
 y6$distance<-plots[match(as.character(y6$name1),plots$name1),"distance"]
 y6$transect<-plots[match(as.character(y6$name1),plots$name1),"transect"]
+y6<- y6 %>% filter(!is.na(Plot))
 #report monthly per tree and per ha yield
 write.csv(y6,paste0(getwd(),"/Yield/Monthly_HarvestEstimates.csv"))
 
@@ -601,43 +620,46 @@ y3$transect<-plots[match(as.character(y3$name1),plots$name1),"transect"]
 write.csv(y3,paste0(getwd(),"/Yield/PerTree_CropEstimates.csv"))
 rm(y1,y2,y3,y4,x1)
 
-y3<-read.csv(paste0(getwd(),"/Yield/PerTree_CropEstimates.csv"))
+y3 <- read.csv(paste0(getwd(),"/Yield/PerTree_CropEstimates.csv"))
+y3 <- y3 %>% mutate(TreeSize="Large") %>% mutate(TreeSize=replace(TreeSize,DBH<10,"Small"))
+
 #create figure of seasonal yields for each transect
-ggplot(y3, aes(season,HeavyCrop))+geom_boxplot(aes(color=transect))+facet_wrap(~transect,ncol=3)+
+ggplot(y3, aes(season,HeavyCrop),group=TreeSize)+geom_boxplot(aes(color=TreeSize))+facet_wrap(~transect,ncol=3)+
   theme_classic() + ylab("Heavy Crop [kg/tree]")
   ggsave(paste0(getwd(),"/Analysis/ElNino/Yield_pertree_transect.seasons.comparison.pdf"))
 
-ggplot(y3, aes(season,HC.blackpod))+geom_boxplot(aes(color=transect))+facet_wrap(~transect,ncol=3)+
+ggplot(y3, aes(season,HC.blackpod),group=TreeSize)+geom_boxplot(aes(color=TreeSize))+facet_wrap(~transect,ncol=3)+
     theme_classic() + ylab("Heavy Crop Lost to Black Pod [kg/tree]")
   ggsave(paste0(getwd(),"/Analysis/ElNino/Yield.bp_pertree_transect.seasons.comparison.pdf"))
 
-ggplot(y3, aes(season,HC.capsid))+geom_boxplot(aes(color=transect))+facet_wrap(~transect,ncol=3)+
+ggplot(y3, aes(season,HC.capsid),group=TreeSize)+geom_boxplot(aes(color=TreeSize))+facet_wrap(~transect,ncol=3)+
     theme_classic() + ylab("Heavy Crop Lost to Capsid [kg/tree]")
   ggsave(paste0(getwd(),"/Analysis/ElNino/Yield.capsid_pertree_transect.seasons.comparison.pdf"))
   
 #create figure of seasonal yields for each transect
-ggplot(y3, aes(season,LightCrop))+geom_boxplot(aes(color=transect))+facet_wrap(~transect,ncol=3)+
+ggplot(y3, aes(season,LightCrop),group=TreeSize)+geom_boxplot(aes(color=TreeSize))+facet_wrap(~transect,ncol=3)+
   theme_classic() + ylab("Light Crop [kg/tree]")
 ggsave(paste0(getwd(),"/Analysis/ElNino/Yield.lc_pertree_transect.seasons.comparison.pdf"))
 
-ggplot(y3, aes(season,LC.blackpod))+geom_boxplot(aes(color=transect))+facet_wrap(~transect,ncol=3)+
+ggplot(y3, aes(season,LC.blackpod),group=TreeSize)+geom_boxplot(aes(color=TreeSize))+facet_wrap(~transect,ncol=3)+
   theme_classic() + ylab("Light Crop Lost to Black Pod [kg/tree]")
 ggsave(paste0(getwd(),"/Analysis/ElNino/Yield.lc.bp_pertree_transect.seasons.comparison.pdf"))
 
-ggplot(y3, aes(season,LC.capsid))+geom_boxplot(aes(color=transect))+facet_wrap(~transect,ncol=3)+
+ggplot(y3, aes(season,LC.capsid),group=TreeSize)+geom_boxplot(aes(color=TreeSize))+facet_wrap(~transect,ncol=3)+
   theme_classic() + ylab("Light Crop Lost to Capsid [kg/tree]")
 ggsave(paste0(getwd(),"/Analysis/ElNino/Yield.lc.capsid_pertree_transect.seasons.comparison.pdf"))
 
 #create figures for each plot
-ggplot(y3, aes(season,HeavyCrop))+geom_boxplot(aes(color=transect))+facet_wrap(~Plot,ncol=6)+
+ggplot(y3, aes(season,HeavyCrop),group=TreeSize)+geom_boxplot(aes(color=TreeSize))+facet_wrap(~Plot,ncol=6)+
   theme_classic() + ylab("Heavy Crop [kg/tree]") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ggsave(paste0(getwd(),"/Analysis/ElNino/Yield_pertree_plot.seasons.comparison.pdf"))
 
-ggplot(y6, aes(Month,Monthly.harvest.tree))+geom_line(aes(color=Plot))+facet_wrap(~transect,ncol=1)+
+y6 <- y6 %>% filter(!is.na(Plot))
+ggplot(y6, aes(Month,Monthly.harvest.l_tree))+geom_line(aes(color=Plot))+facet_wrap(~transect,ncol=1)+
   theme_classic() +ylab("Harvest [kg/tree]")
 ggsave(paste0(getwd(),"/Analysis/ElNino/Yield_pertree_transect.monthly.comparison.pdf"))
 
-ggplot(y3, aes(season,HeavyCrop))+geom_boxplot()+facet_wrap(~distance,ncol=2)+theme_classic()
+ggplot(y3, aes(season,HeavyCrop),group=TreeSize)+geom_boxplot(aes(color=TreeSize))+facet_wrap(~distance,ncol=2)+theme_classic()
 ggsave(paste0(getwd(),"/Analysis/ElNino/Yield_pertree_distance.seasons.comparison.pdf"),height=6, width = 7)
 
 #cocoa pod carbon production
@@ -654,6 +676,13 @@ pdw <- pdw %>% group_by(plot,treeno,date) %>% mutate(Tlpods=sum(l.harv,l.mam,abs
 plts<-c("KA 100 F3","KA 100 F1","KA 500 F3","KA 1K F3","HM 5K F2","HM 500 F3","HM 100 F3","HM 500 F2")
 plots<-read.csv(paste0(getwd(),"/plots.csv"))
 
+p.tree <- read.csv(paste0(getwd(),"/Yield/PerTree_CropEstimates.csv"))
+p.tree <- p.tree %>% rename(plot=Plot,treeno=TreeNo,dbh=DBH)
+
+m.yield <- read.csv(paste0(getwd(),"/Yield/Monthly_HarvestEstimates.csv"))
+m.yield <- m.yield %>% rename(plot=Plot,date=Month,large=No.cocoatrees,small=No.sm_cocoatrees) %>% mutate(date=as.Date(date)) %>%
+  select(plot,date,large,small) %>% gather(key="treesize",value="no.trees",-date,-plot)
+
 for(i in 1:length(plts)){
   #total<-data.frame(month=character(),year=character(),shell=numeric(),beans=numeric(),stringsAsFactors=F)
   p<-pdw %>% filter(plot==plts[i]) %>% ungroup()
@@ -667,23 +696,21 @@ for(i in 1:length(plts)){
   
   summ <- p %>% group_by(plot,date,treeno) %>% summarise(TShell_kgC=sum(Tlpods*cf[cf$SizeClass=="Large","ShellCarbon"],Tmpods*cf[cf$SizeClass=="Medium","ShellCarbon"],Tspods*cf[cf$SizeClass=="Small","ShellCarbon"],na.rm=T)/1000,
                                                   TBean_kgC=sum(Tlpods*cf[cf$SizeClass=="Large","BeanCarbon"],Tmpods*cf[cf$SizeClass=="Medium","BeanCarbon"],Tspods*cf[cf$SizeClass=="Small","BeanCarbon"],na.rm=T)/1000)
-  total <- summ %>% group_by(plot,date) %>% summarise(TShell_kgC=mean(TShell_kgC,na.rm=T),TBean_kgC=mean(TBean_kgC,na.rm=T)) 
-  total1 <- summ %>% group_by(plot,date) %>% summarise(TShell_kgCse=sd(TShell_kgC,na.rm=T)/sqrt(18),TBean_kgCse=sd(TBean_kgC,na.rm=T)/sqrt(18))
+  #add in DBH
+  summ <- left_join(summ,p.tree %>% select(plot,treeno,dbh),by=c("plot","treeno"))
+  summ <- distinct(summ,plot,date,treeno,.keep_all=T)
+  summ <- summ %>% mutate(treesize="large") %>% mutate(treesize=replace(treesize,dbh<10,"small"))
   
-  total <- left_join(total,total1,by=c("plot","date"))
+  total <- summ %>% group_by(plot,date,treesize) %>% summarise(TShell_kgC=mean(TShell_kgC,na.rm=T),TBean_kgC=mean(TBean_kgC,na.rm=T)) 
+  total1 <- summ %>% group_by(plot,date,treesize) %>% summarise(TShell_kgCse=sd(TShell_kgC,na.rm=T)/sqrt(18),TBean_kgCse=sd(TBean_kgC,na.rm=T)/sqrt(18))
+  
+  total <- left_join(total,total1,by=c("plot","date","treesize"))
   #total<-ddply(p,.(plot,date),summarise,TShell_kgC=sum(Tpods)*cf[1,1]/2.1097,TBean_kgC=sum(Tpods)*cf[1,2]/2.1097/1000/18)
   #multiply by number of cocoa trees, per census 
-  census   <- data.frame(lapply(read.csv(paste0(getwd(),"/AGB/ForestPlots/",gsub(" ","",plts[i]),"_LS.csv")) , as.character),stringsAsFactors=F)
-  #colnames(census)<-c("X","Subplot","x.coord","y.coord","Tag","Fam","Genus", "Species","DBH1", "DBH2","POM","Height","TreeCodes","Notes", "PlotCode", "PlotNum","OrigSpecies","NSpecies","NFam","THeight")         
-  no.cocoa1 <- round(nrow(census[census$NSpecies=="Theobroma cacao"&as.numeric(census$DBH2)>10&!is.na(census$DBH),])/0.36)
-  no.cocoa2 <- round(nrow(census[census$NSpecies=="Theobroma cacao"&as.numeric(census$DBH3)>10&!is.na(census$DBH3),])/0.36)
-  
-  total1 <- total %>% filter(date<"2015-11-01") %>% mutate(no.trees=no.cocoa1,TShell_MgCperha=TShell_kgC*no.cocoa1/1000,TBean_MgCperha=TBean_kgC*no.cocoa1/1000,
-                                                           TShell_MgCperhase=TShell_kgCse*no.cocoa1/1000,TBean_MgCperhase=TBean_kgCse*no.cocoa1/1000)
-  total2 <- total %>% filter(date>="2015-11-01") %>% mutate(no.trees=no.cocoa2,TShell_MgCperha=TShell_kgC*no.cocoa2/1000,TBean_MgCperha=TBean_kgC*no.cocoa2/1000,
-                                                            TShell_MgCperhase=TShell_kgCse*no.cocoa1/1000,TBean_MgCperhase=TBean_kgCse*no.cocoa1/1000)
-  
-  total <- bind_rows(total1,total2)
+  total<-left_join(total,m.yield,by=c("plot","date","treesize"))
+ 
+  total <- total %>% mutate(TShell_MgCperha=TShell_kgC*no.trees/1000,TBean_MgCperha=TBean_kgC*no.trees/1000,
+                                                           TShell_MgCperhase=TShell_kgCse*no.trees/1000,TBean_MgCperhase=TBean_kgCse*no.trees/1000)
   
   write.csv(total,paste0(getwd(),"/NPP/Total/",gsub(" ","",plts[i]),"_NPPcocoapods.csv"))
 }

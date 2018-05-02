@@ -108,7 +108,7 @@ for(i in 1:length(f.plts)){
   spp <- df.l %>% group_by(Species) %>%
     summarise(BA1 = sum(pi*(DBH1/2000)^2,na.rm=T)/area, BA2 = sum(pi*(DBH2/2000)^2,na.rm=T)/area, BA3 = sum(pi*(DBH3/2000)^2,na.rm=T)/area,
               BM1 = sum(BM1, na.rm=T)/1000/area, BM2 = sum(BM2, na.rm=T)/1000/area, BM3 = sum(BM3, na.rm=T)/1000/area,
-              N.1 = ceiling(length(DBH1[!is.na(DBH1)])/area), N.2 = ceiling(length(DBH2[!is.na(DBH2)])/area), N.3 = ceiling(length(DBH3[!is.na(DBH3)])/area), 
+              N.1 = ceiling(length(DBH1[!is.na(DBH1)])/area), N.2 = ceiling(length(DBH2[!is.na(DBH2)])/area), N.3 = ceiling(length(DBH3[!is.na(DBH3)])/area),
               S.1 = ceiling(length(Height[Height>=12&!is.na(DBH1)])/area), S.2 = ceiling(length(Height[Height>=12&!is.na(DBH2)])/area), S.3 = ceiling(length(Height[Height>=12&!is.na(DBH3)])/area))
   
   #spp.s <- df.s %>% group_by(Species) %>%

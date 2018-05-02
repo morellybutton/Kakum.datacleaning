@@ -293,11 +293,12 @@ for(i in 1:length(year)){
   d.F.plot <- read_csv(paste0(getwd(),"/Analysis/ES/ES_analysis_dataset.",year[i],".csv"))
   d.F.plot <- d.F.plot %>% rename(plot=Plot)
   d.F.plot <- distinct(d.F.plot, plot, .keep_all = TRUE)
-  combo[[i]] <- d.F.plot %>% select(plot,season,HeavyCrop,LightCrop,PropCPB,PropBP,Biomass,Distance,distance.cont,Cocoa.density,Shade.density,Canopy.gap.dry,CN.ratio,pH,soil.moist,Tmax,Tmin,maxVPD)
- 
+  
   d.F.plot <- left_join(d.F.plot,l.bor1 %>% select(plot,Labour.harvesting,Harvesting.months,Labour.weeding,Weedings.months), by="plot")
   d.F.plot <- left_join(d.F.plot,y.ld1 %>% select(plot,Yield.cv),by="plot")
   d.F.plot <- left_join(d.F.plot,f.rt1,by="plot")
+  
+  combo[[i]] <- d.F.plot %>% select(plot,Transect,season,HeavyCrop,LightCrop,PropCPB,PropBP,Mist,Biomass,Distance,distance.cont,Cocoa.density,Shade.density,Shannoni,BALegume,Canopy.gap.dry,CN.ratio,Tot.P,K.meq,pH,soil.moist,Tmax,Tmin,maxVPD,Chset,SBT,No.applications.yr)
   
   #make sure binary variables are factors
   d.F.plot$Fertliser.bin<-0
@@ -320,5 +321,6 @@ yield_mean <- yield_all %>% group_by(plot) %>% summarise(m.HeavyCrop=mean(HeavyC
 yield_all <- left_join(yield_all,yield_mean,by="plot")
 yield_all <- yield_all %>% mutate(anom_heavycrop=HeavyCrop-m.HeavyCrop,anom_lightcrop=LightCrop-m.LightCrop,anom_cpb=PropCPB-m.PropCPB,
                                   anom_bp=PropBP-m.PropBP)
+
 write_csv(yield_all,paste0(getwd(),"/Analysis/ES/Yield_anomalies.csv"))
   
