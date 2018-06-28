@@ -1,5 +1,5 @@
 ### Function fine litter fall: 
-# This function uses data to calculate NPP from fine litterfall for ESPA.
+# This function uses data to calculate NPP from quarterly measures of fine litterfall for ESPA.
 
 ## Required Data:
 #% year  

@@ -504,6 +504,10 @@ for(i in 1:length(plts)){
   
   census   <- data.frame(lapply(read.csv(paste0(getwd(),"/AGB/ForestPlots/",gsub(" ","",plts[i]),"_LS.csv")) , as.character),stringsAsFactors=F)
   census_ss   <- data.frame(lapply(read.csv(paste0(getwd(),"/AGB/ForestPlots/",gsub(" ","",plts[i]),"_SS.csv")) , as.character),stringsAsFactors=F)
+  
+  #find minimum DBH of measured tree for extrapolating number of pods
+  min.dbh<-census %>% select(DBH) %>% summarise(min.dbh=min(as.numeric(DBH),na.rm=T)) %>% pull(min.dbh)
+  
   #colnames(census)<-c("X","Subplot","x.coord","y.coord","Tag","Fam","Genus", "Species","DBH1", "DBH2","POM","Height","TreeCodes","Notes", "PlotCode", "PlotNum","OrigSpecies","NSpecies","NFam","THeight")         
   #no.cocoa1 <- nrow(census[census$NSpecies=="Theobroma cacao"&as.numeric(census$DBH2)>10&!is.na(census$DBH2),])/0.36
   #no.cocoa2 <- nrow(census[census$NSpecies=="Theobroma cacao"&as.numeric(census$DBH3)>10&!is.na(census$DBH3),])/0.36
@@ -540,8 +544,8 @@ for(i in 1:length(plts)){
     rm(n)
     
     n_ss<-census_ss[grep("Theobroma",census_ss$NSpecies),]
-    if(year(unique(x2$date))<"2017") { n_ss<-n_ss[!is.na(as.numeric(n_ss$DBH2)),] ; n_ss.1<-nrow(n_ss[grep("0",n_ss$Flag1.1,invert=T),])
-    } else { n_ss<-n_ss[!is.na(as.numeric(n_ss$DBH3)),] ;  n_ss.1<-nrow(n_ss[grep("0",n_ss$Flag1,invert=T),]) }
+    if(year(unique(x2$date))<"2017") { n_ss<-n_ss[!is.na(as.numeric(n_ss$DBH2)),] ; n_ss<-n_ss[as.numeric(n_ss$DBH2)>min.dbh,]; n_ss.1<-nrow(n_ss[grep("0",n_ss$Flag1.1,invert=T),])
+    } else { n_ss<-n_ss[!is.na(as.numeric(n_ss$DBH3)),] ; n_ss<-n_ss[as.numeric(n_ss$DBH3)>min.dbh,]; n_ss.1<-nrow(n_ss[grep("0",n_ss$Flag1,invert=T),]) }
     rm(n_ss)
     #for(j in 1:length(no)){
     #No<-str_split_fixed(x1$treeno," ",2)
@@ -621,11 +625,13 @@ write.csv(y3,paste0(getwd(),"/Yield/PerTree_CropEstimates.csv"))
 rm(y1,y2,y3,y4,x1)
 
 y3 <- read.csv(paste0(getwd(),"/Yield/PerTree_CropEstimates.csv"))
-y3 <- y3 %>% mutate(TreeSize="Large") %>% mutate(TreeSize=replace(TreeSize,DBH<10,"Small"))
+y3$transect<-as.character(y3$transect)
+y3 <- y3 %>% mutate(TreeSize="Large") %>% mutate(TreeSize=replace(TreeSize,DBH<10,"Small"),transect=replace(transect,transect=="Aboabo","AB"),transect=replace(transect,transect=="Ahomaho","HM"),transect=replace(transect,transect=="Kwameameobang","KA"))
 
 #create figure of seasonal yields for each transect
 ggplot(y3, aes(season,HeavyCrop),group=TreeSize)+geom_boxplot(aes(color=TreeSize))+facet_wrap(~transect,ncol=3)+
-  theme_classic() + ylab("Heavy Crop [kg/tree]")
+  theme_classic() + ylab("Heavy Crop [kg/tree]") + theme(plot.background = element_blank(),text=element_text(size=18),
+                                                         legend.position = "top")
   ggsave(paste0(getwd(),"/Analysis/ElNino/Yield_pertree_transect.seasons.comparison.pdf"))
 
 ggplot(y3, aes(season,HC.blackpod),group=TreeSize)+geom_boxplot(aes(color=TreeSize))+facet_wrap(~transect,ncol=3)+

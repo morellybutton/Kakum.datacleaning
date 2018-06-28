@@ -31,7 +31,7 @@ b<-0.5
 
 #calculate infiltration factor using Kostiakov equation F=alpha*kappa*t^(alpha-1), alpha and kappa taken from tables
 
-#library(lubridate)
+library(lubridate)
 #library(plyr)
 library(ggplot2)
 library(gridExtra)
@@ -67,7 +67,7 @@ colnames(met.mj)<-c("day","date")
 met.mj$slrmj<-met$slrmj
 met.mj$hour<-hour(cut(met[,1],breaks="hour"))
 
-met.rad<-data.frame(ddply(met.mj,.(day,hour),summarise,radiation=sum(as.numeric(slrmj),na.rm=T)),stringsAsFactors = F)
+met.rad<-met.mj %>% group_by(day,hour) %>% summarise(radiation=sum(as.numeric(slrmj),na.rm=T))
 nas<-which(is.na(met.rad$radiation))
 
 #fill in missing values
@@ -87,12 +87,13 @@ met.kw$slrkw<-met$slrkw
 met.kw$sunshine<-met.kw$slrkw>.12
 met.kw$sunshine<-met.kw$sunshine+0
 
-sunshine<-ddply(met.kw,.(day),summarise,daylight=sum(sunshine)/2)
+sunshine<-met.kw %>% group_by(day) %>% summarise(daylight=sum(sunshine)/2)
+
 sunshine$month<-as.Date(cut(as.Date(sunshine$day),breaks="month"))
 daycount <- table(sunshine$day) 
 
 # generate vector of all dates[taken from http://www.r-bloggers.com/fix-missing-dates-with-r/]
-alldays <- seq(as.Date(min(sunshine$day,na.rm=T)),length=as.numeric(as.Date(sunshine[!is.na(sunshine$day),"day"][length(sunshine[!is.na(sunshine$day),1])])-as.Date(min(sunshine$day,na.rm=T))+1),by="+1 day")  
+alldays <- seq(as.Date(min(sunshine$day,na.rm=T)),length=as.numeric(sunshine[nrow(sunshine[!is.na(sunshine$day),]),"day"]-as.numeric(min(sunshine$day,na.rm=T))+1),by="+1 day")  
 allcount <- table(alldays) # create table object from alldays.
 actindex <- match(names(allcount),names(daycount),nomatch = 0)  
 # create "active" index: vector of length(allcount), i.e. all days. 
@@ -136,7 +137,7 @@ ds.1$month<-as.Date(cut(as.Date(ds.1[,1]),breaks="month"))
 m<-unique(ds.1$month)
 d.s.1<-list()
 for(i in 1:length(m)){
-  d.s.1[[i]]<-ddply(met.rad[met.rad$month==m[i],],.(month,hour),summarise,radiation.hr=mean(radiation,na.rm=T))
+  d.s.1[[i]]<-met.rad %>% filter(month==m[i]) %>% group_by(month,hour) %>% summarise(radiation.hr=mean(radiation,na.rm=T))
 }
 d.s.1<-do.call(rbind.data.frame,d.s.1)
 
@@ -167,7 +168,8 @@ alldaycount$Hs<-acos(-tan(phi)*tan(alldaycount$gamma))
 alldaycount$n_N<-alldaycount$daylight/(24/pi*alldaycount$Hs)
 
 #sum hourly radiation levels to get daily radiation
-alldaycount.1<-ddply(allhours,.(day),summarise,Rs=sum(radiation,na.rm=T)*2)
+alldaycount.1<-allhours %>% group_by(day) %>% summarise(Rs=sum(radiation,na.rm=T)*2)
+
 alldaycount.1$month<-as.Date(cut(as.Date(alldaycount.1$day),breaks="month"))
 
 #identify days with missing hours of measurement and supply average monthly value
@@ -362,7 +364,7 @@ tmp<- et.0 %>% group_by(Plot,month) %>% summarise(maxT=mean(Tmax),minT=mean(Tmin
                                                   stress.nodays.1=sum(stress.1),stress.mm=sum(diff),stress.mm.1=sum(diff.1))
 
 #calculate monthly maxT, minT, meanT, maxVPD, stress incidence (number of negative days), sum infiltration and ETO differences 
-tmp<-ddply(et.0,.(Plot,month),summarise,maxT=mean(Tmax),minT=mean(Tmin),meanT=mean((Tmax+Tmin)/2),maxVPD=mean(VPDmax),meanRH=mean(RHmean),stress.nodays=sum(stress),stress.nodays.1=sum(stress.1),stress.mm=sum(diff),stress.mm.1=sum(diff.1))
+tmp<-et.0 %>% group_by(Plot,month) %>% summarise(maxT=mean(Tmax),minT=mean(Tmin),meanT=mean((Tmax+Tmin)/2),maxVPD=mean(VPDmax),meanRH=mean(RHmean),stress.nodays=sum(stress),stress.nodays.1=sum(stress.1),stress.mm=sum(diff),stress.mm.1=sum(diff.1))
 
 #write out stress indices per month
 write.csv(tmp,paste0(getwd(),"/MonthlyStress_estimates.csv"))

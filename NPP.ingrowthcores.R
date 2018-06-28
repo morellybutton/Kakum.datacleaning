@@ -52,6 +52,8 @@ require(ggplot2)
 library(scales)
 library(nlme)
 library(stringr)
+library(lubridate)
+library(tidyverse)
 
 for(p in 1:length(plotname)){
   ### Read test data:
@@ -349,8 +351,8 @@ for(p in 1:length(plotname)){
     #colnames(data2a) <- c("this_core", "rootztot")
     #############################################################################
     
-    data2a <- data.frame(cbind(xx, as.numeric(as.character(aa)), as.numeric(as.character(bb)), as.numeric(as.character(cc)), as.numeric(as.character(dd)), as.numeric(as.character(ee)), as.numeric(as.character(ff)), as.numeric(as.character(gg)), as.numeric(as.character(hh)), as.numeric(as.character(ii)), as.numeric(as.character(jj))))
-    colnames(data2a) <- c("this_core", "tot_olunder2", "tot_ol2to3", "tot_ol3to4", "tot_ol4to5", "tot_olabove5", "tot_mlunder2","tot_ml2to3","tot_ml3to4", "tot_ml4to5", "tot_mlabove5")
+    data2a <- data.frame(cbind(xx,str_split_fixed(xx,"-IC ",2)[,2], as.numeric(as.character(aa)), as.numeric(as.character(bb)), as.numeric(as.character(cc)), as.numeric(as.character(dd)), as.numeric(as.character(ee)), as.numeric(as.character(ff)), as.numeric(as.character(gg)), as.numeric(as.character(hh)), as.numeric(as.character(ii)), as.numeric(as.character(jj))))
+    colnames(data2a) <- c("this_core","core_no", "tot_olunder2", "tot_ol2to3", "tot_ol3to4", "tot_ol4to5", "tot_olabove5", "tot_mlunder2","tot_ml2to3","tot_ml3to4", "tot_ml4to5", "tot_mlabove5")
     
     #data2a <- data.frame(cbind(xx, as.numeric(as.character(aa)), as.numeric(as.character(bb)), as.numeric(as.character(cc)), as.numeric(as.character(dd)), as.numeric(as.character(ee)), as.numeric(as.character(ff)),as.numeric(as.character(ff.p)),as.numeric(as.character(ff.2)), as.numeric(as.character(gg)),as.numeric(as.character(gg.p)),as.numeric(as.character(gg.2)), as.numeric(as.character(hh)), as.numeric(as.character(ii)), as.numeric(as.character(jj))))
     #colnames(data2a) <- c("this_core", "tot_olunder2", "tot_ol2to3", "tot_ol3to4", "tot_ol4to5", "tot_olabove5", "tot_mlunder2","prop_ml_under2", "tot_mlunder2b","tot_ml2to3","prop_ml_2to3", "tot_ml_2to3b", "tot_ml3to4", "tot_ml4to5", "tot_mlabove5")
@@ -469,17 +471,21 @@ for(p in 1:length(plotname)){
     #data2a$period<-NA
     #data2a[data2a$date<"2015-07-01"&!is.na(data2a$interval),"period"]<-"year1"
     #data2a[data2a$date>"2015-07-01"&!is.na(data2a$interval),"period"]<-"year2"
-  
+    
+    #spatial variation for each month
     #data3<-sqldf("SELECT data2a.ingrowth_core, data2a.period, AVG(data2a.monthlyNPProot), STDEV(data2a.monthlyNPProot), AVG(data2a.monthlyNPProotb), STDEV(data2a.monthlyNPProotb), AVG(data2a.prop_ml_under2), STDEV(data2a.prop_ml_under2) FROM data2a GROUP BY data2a.ingrowth_core, data2a.period")
     data3<-sqldf("SELECT data2a.date, AVG(data2a.monthlyNPProot), STDEV(data2a.monthlyNPProot) FROM data2a GROUP BY data2a.date")
-    data3[is.na(data3$`AVG(data2a.monthlyNPProot)`),2:3]<-c(mean(data2a[is.na(data2a$interval),"ic_MgCha"],na.rm=T),sd(data2a[is.na(data2a$interval),"ic_MgCha"],na.rm=T))
+    #data3[is.na(data3$`AVG(data2a.monthlyNPProot)`),2:3]<-c(mean(data2a[is.na(data2a$interval),"ic_MgCha"],na.rm=T),sd(data2a[is.na(data2a$interval),"ic_MgCha"],na.rm=T))
 
     colnames(data3)<-c("date","monthlyNPProot","monthlyNPProot.sd")
     data3$monthlyNPProot<-as.numeric(data3$monthlyNPProot)
     data3$monthlyNPProot.se<-as.numeric(data3$monthlyNPProot.sd)/sqrt(no.ic)
     
+    #temporal variation for each core
+    data3t<-sqldf("SELECT data2a.core_no, AVG(data2a.monthlyNPProot), STDEV(data2a.monthlyNPProot) FROM data2a GROUP BY data2a.core_no")
+    colnames(data3t)<-c("core_no","monthlyNPProot","monthlyNPProot.sd")
     #data3<-data3[!is.na(data3$period),]
-    data3$annual<-as.numeric(data3$monthlyNPProot)*12
+    data3t$annual<-as.numeric(data3t$monthlyNPProot)*12
     #data3$annualb<-as.numeric(data3$`AVG(data2a.monthlyNPProotb)`)*12
     #data3$x<-as.Date(tt$date[nrow(tt)])
     #data3$y<-as.numeric(max(data3$monthlyNPProot))
@@ -510,6 +516,12 @@ for(p in 1:length(plotname)){
    data3$year <- year(data3$date)
    data3$month <- month(data3$date)
   write.csv(data3,paste0(getwd(),"/RTS_",gsub(" ","",plotname[p]),"_out.v2.csv"))
+  #write root stock and annual estimates per each core
+  stck<-data2a[1:4,] %>% select(core_no,ic_MgCha)
+  stck<-left_join(stck,data3t,by="core_no")
+  #calculate root turnover
+  stck <- stck %>% group_by(core_no) %>% mutate(t_over.months=ic_MgCha/monthlyNPProot)
+  write.csv(stck,paste0(getwd(),"/RTS_",gsub(" ","",plotname[p]),"_stock.csv"))
 }
 
 # Return either monthly means (ret="monthly.means")   

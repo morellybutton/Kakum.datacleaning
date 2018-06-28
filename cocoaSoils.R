@@ -113,3 +113,15 @@ d.F.2$Mg.prop<-d.F.2$Mg.meq/s.limits$Mg.meq.100g
 
 write.csv(d.F.2,paste0(getwd(),"/Soil_nutrient_data.csv"))
 
+#calculate soil nutrient and carbon content for 0-30 cm
+#bulk density is in g/cm3 or tonnes/m3, 0-30 cm of soil = 3,000 m3/ha*Bulk density
+#the equation is concentration(ppm)*bulk density*3000/1000 = kg/ha
+#for percent concentration the eqn is: %*bulk density*3000/100 = tonnes/ha
+soil_cont <- d.F %>% filter(Depth=="0-10"|Depth=="10-30") %>% group_by(name1) %>%
+  summarise(N.Mg.ha=sum(weight*N.)*sum(weight*Bulk_density)*30,C.Mg.ha=sum(weight*C.)*sum(weight*Bulk_density)*30,
+            Avail.P.kg.ha=sum(weight*Avail.P..mg.kg.)*sum(weight*Bulk_density)*3,Avail.K.kg.ha=sum(weight*Avail.K..mg.kg.)*sum(weight*Bulk_density)*3,
+            Avail.Ca.Mg.ha=sum(weight*Avail.Ca..mg.kg.)*sum(weight*Bulk_density)*3/1000,Avail.Mg.kg.ha=sum(weight*Avail.Mg..mg.kg.)*sum(weight*Bulk_density)*3,
+            Avail.Mn.kg.ha=sum(weight*Avail.Mn..mg.kg.)*sum(weight*Bulk_density)*3,Avail.Zn.kg.ha=sum(weight*Avail.Zn..mg.kg.)*sum(weight*Bulk_density)*3,
+            Al.kg.ha=sum(weight*Al...mg.kg.)*sum(weight*Bulk_density)*3,Fe.kg.ha=sum(weight*Fe..mg.kg.)*sum(weight*Bulk_density)*3)
+write_csv(soil_cont,paste0(getwd(),"/Soil_nutrient_content.csv"))
+

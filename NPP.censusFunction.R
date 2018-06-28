@@ -264,6 +264,18 @@ for(p in 1:length(trans)){
     cen <- left_join(cen,dend_tags,by="tree_tag")
     cen <- cen %>% mutate(dend=replace(dend,is.na(dend),0))
 
+    #add in size classes 0-10,10-20,20-30,30-40,40-50,50-60,60-70,70-80,80-90,90-100,100-110,110-120,120-130
+    cen_s$size_class<-"0-10"
+    cen$size_class<-"10-20"
+    cen <- cen %>% mutate(size_class=replace(size_class,dbh>200&dbh<=300,"20-30"),size_class=replace(size_class,dbh>300&dbh<=400,"30-40"),
+                          size_class=replace(size_class,dbh>400&dbh<=500,"40-50"),size_class=replace(size_class,dbh>500&dbh<=600,"50-60"),
+                          size_class=replace(size_class,dbh>600&dbh<=700,"60-70"),size_class=replace(size_class,dbh>700&dbh<=800,"70-80"),
+                          size_class=replace(size_class,dbh>800&dbh<=900,"80-90"),size_class=replace(size_class,dbh>900&dbh<=1000,"90-100"),
+                          size_class=replace(size_class,dbh>1000&dbh<=1100,"100-110"),size_class=replace(size_class,dbh>1100&dbh<=1200,"110-120"),
+                          size_class=replace(size_class,dbh>1200&dbh<=1300,"120-130"),size_class=replace(size_class,dbh>1300&dbh<=1400,"130-140"),
+                          size_class=replace(size_class,dbh>1400&dbh<=1500,"140-150"),size_class=replace(size_class,dbh>1500&dbh<=1600,"150-160"),
+                          size_class=replace(size_class,dbh>1600&dbh<=1700,"160-170"),size_class=replace(size_class,dbh>1700&dbh<=1800,"170-180"))
+    
     #calculate proportion of AGB represented by dendrometers
     out_cen <- cen %>% group_by(year,cocoa) %>% filter(flag1!=0&!is.na(flag1)&dbh>100) %>%
       summarise(total_bm=sum(bm/plot_size,na.rm=T), total_agC=sum(bm,na.rm=T)*(1/(2.1097*1000))/plot_size)
@@ -282,6 +294,14 @@ for(p in 1:length(trans)){
     out_cen$growth_agC<-NA
     out_cen$prop_growth<- NA
     
+    out_tree <- cen %>% group_by(year,cocoa,size_class) %>% filter(flag1!=0&!is.na(flag1)&dbh>100) %>%
+      summarise(total_bm=sum(bm/plot_size,na.rm=T), total_agC=sum(bm,na.rm=T)*(1/(2.1097*1000))/plot_size)
+    
+    out_tree_s <- cen_s %>% group_by(year,cocoa,size_class) %>% filter(flag1!=0&!is.na(flag1)) %>%
+      summarise(total_bm=sum(bm/plot_size,na.rm=T), total_agC=sum(bm,na.rm=T)*(1/(2.1097*1000))/s_plot_size)
+    
+    out_tree <- bind_rows(out_tree_s,out_tree)
+    tmp_tree <- list()
     #calculate growth increment per year
     meas<-unique(cen$year)
     for(xts in 2:length(meas)){
@@ -296,8 +316,8 @@ for(p in 1:length(trans)){
       #bm2 <- tmp_cen %>% filter(year==meas[xts]) %>% group_by(cocoa) %>% summarise(total=sum(bm,na.rm=T)/plot_size,no.trees=length(bm)) 
       #bm2_s <- tmp_cen_s %>% filter(year==meas[xts]) %>% group_by(cocoa) %>% summarise(total=sum(bm,na.rm=T)/s_plot_size,no.trees=length(bm)) 
       
-      bm_1 <- tmp_cen %>% filter(year==meas[xts-1]) %>% select(tree_tag,bm,flag1,cocoa)
-      bm_1_s <- tmp_cen_s %>% filter(year==meas[xts-1])  %>% select(tree_tag,bm,flag1,cocoa)
+      bm_1 <- tmp_cen %>% filter(year==meas[xts-1]) %>% select(tree_tag,bm,flag1,cocoa,size_class)
+      bm_1_s <- tmp_cen_s %>% filter(year==meas[xts-1])  %>% select(tree_tag,bm,flag1,cocoa,size_class)
       bm_2 <- tmp_cen %>% filter(year==meas[xts]) %>% select(tree_tag,bm,flag1,cocoa)
       bm_2_s <- tmp_cen_s %>% filter(year==meas[xts]) %>% select(tree_tag,bm,flag1,cocoa)
       
@@ -311,12 +331,13 @@ for(p in 1:length(trans)){
       shade_l <- bm_l %>% filter(cocoa==0) %>% summarise(total=sum(tree_diff,na.rm=T))
       shade_s <- bm_s %>% filter(cocoa==0) %>% summarise(total=sum(tree_diff,na.rm=T))
       
-      growth <- sum(shade_l,shade_s,na.rm=T)/as.numeric(daydiff)*365
+      growth <- sum(shade_l/plot_size,shade_s/s_plot_size,na.rm=T)/as.numeric(daydiff)*365
       growth_agC <- growth*(1/(2.1097*1000))
       
+      #for cocoa trees
       cocoa_l <- bm_l %>% filter(cocoa==1) %>% summarise(total=sum(tree_diff,na.rm=T))
       cocoa_s <- bm_s %>% filter(cocoa==1) %>% summarise(total=sum(tree_diff,na.rm=T))
-      growth_c <- sum(cocoa_l+cocoa_s)/as.numeric(daydiff)*365
+      growth_c <- sum(cocoa_l/plot_size+cocoa_s/s_plot_size)/as.numeric(daydiff)*365
       growth_c_agC <-growth_c*(1/(2.1097*1000))
       
       out_cen$growth[out_cen$cocoa==0&out_cen$year==meas[xts]]<-growth
@@ -331,14 +352,31 @@ for(p in 1:length(trans)){
       bm_dend <- left_join(bm1_dend,bm2_dend,by=c("tree_tag","cocoa"))
       bm_dend <- bm_dend %>% mutate(tree_diff=bm.y-bm.x)
       
-      prop_dend <- (sum(bm_dend %>% filter(cocoa==0) %>% pull(tree_diff),na.rm=T))/as.numeric(daydiff)*365/plot_size/growth
-      prop_dend_c <- (sum(bm_dend %>% filter(cocoa==1) %>% pull(tree_diff),na.rm=T))/as.numeric(daydiff)*365/plot_size/growth_c
+      prop_dend <- (sum(bm_dend %>% filter(cocoa==0) %>% pull(tree_diff),na.rm=T))/as.numeric(daydiff)*365/growth
+      prop_dend_c <- (sum(bm_dend %>% filter(cocoa==1) %>% pull(tree_diff),na.rm=T))/as.numeric(daydiff)*365/growth_c
       out_cen$prop_growth[out_cen$cocoa==0&out_cen$year==meas[xts]]<-prop_dend
       out_cen$prop_growth[out_cen$cocoa==1&out_cen$year==meas[xts]]<-prop_dend_c
+      
+      #calculate growth increment by size class
+      bm_size <- bm_l %>% group_by(cocoa,size_class) %>% filter(!is.na(tree_diff)) %>% summarise(growth=sum(tree_diff),no.tree=length(tree_diff)) %>% mutate(growth.per.tree=growth/no.tree)
+      bm_s_size <- bm_s %>% group_by(cocoa,size_class) %>% filter(!is.na(tree_diff)) %>% summarise(growth=sum(tree_diff),no.tree=length(tree_diff)) %>% mutate(growth.per.tree=growth/no.tree)
+      
+      bm_size <- bm_size %>% mutate(growth_agC_Mg=growth*(1/(2.1097*1000))) %>% mutate(growth_agC_Mg.per.tree=growth_agC_Mg/no.tree) %>% mutate(growth_agC_Mg.ha=growth_agC_Mg/plot_size)
+      bm_s_size <- bm_s_size %>% mutate(growth_agC_Mg=growth*(1/(2.1097*1000))) %>% mutate(growth_agC_Mg.per.tree=growth_agC_Mg/no.tree) %>% mutate(growth_agC_Mg.ha=growth_agC_Mg/s_plot_size)
+      
+      bm_size <- bind_rows(bm_s_size,bm_size)
+      bm_size$year<-meas[xts]
+      
+      tmp_tree[[xts-1]]<-left_join(bm_size,out_tree,by=c("year","cocoa","size_class"))
+      
     }
+    tmp_tree<-do.call(rbind.data.frame,tmp_tree)
+    out_tree <- bind_rows(out_tree %>% filter(year==2014),tmp_tree)
     #save census values
     write_csv(out_cen,path = paste0(getwd(),"/NPP/Dendrometers/census_npp_",gsub(" ","",this_plot_name),".csv"))
-  #------End Census Estimates-----#
+    write_csv(out_tree,path = paste0(getwd(),"/NPP/Dendrometers/census_bytree_npp_",gsub(" ","",this_plot_name),".csv"))
+    
+    #------End Census Estimates-----#
   }
 }
 

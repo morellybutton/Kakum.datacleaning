@@ -30,6 +30,8 @@ ES.yield.tree<- data_frame(Plot=gsub(" ","",ES.yield.tree$Plot),TreeNo=ES.yield.
 ES.yield.tree <- ES.yield.tree %>% mutate(tree_size="large") %>% mutate(tree_size=replace(tree_size,DBH<10,"small"))
 ES.yield <- ES.yield.tree %>% group_by(Plot,season,tree_size) %>%
   summarise(HeavyCrop = median(HeavyCrop),LightCrop=median(LightCrop),Distance=mean(Distance),Transect=unique(Transect),no.tree=length(tree_size)) %>% filter(no.tree>=5)
+yield.all <- ES.yield.tree %>% group_by(Plot,season) %>% summarise(HeavyCrop=median(HeavyCrop,na.rm=T),LightCrop=median(LightCrop,na.rm=T),tree_size="all",Distance=mean(Distance),Transect=unique(Transect),no.tree=length(Plot))
+ES.yield <- bind_rows(ES.yield,yield.all)
 
 #load pollinator data
 #ES.pollinos<-read.csv(paste0(getwd(),"/Pollination/Pollinator.nos.HC1415.csv"))
@@ -165,6 +167,37 @@ ES.management<-left_join(ES.management,ns %>% select(Plot,age,distance.cont,Cano
 ES.management <- distinct(ES.management,Plot,.keep_all=T)
 #write.csv(ES.management,paste0(getwd(),"/Analysis/ES/Management.variables.csv"))
 
+#create monthly measures dataset
+ES.pollination$month<-as.Date(ES.pollination$month)
+pollin <- left_join(ES.fruitset,ES.pollination %>% select(-Date,-X),by=c("Plot","month"))
+pollin$year<-year(pollin$month)
+
+month_yield<-read_csv(paste0(getwd(),"/Yield/Monthly_podremovals.csv"))
+month_yield$Plot<-gsub(" ","",month_yield$plot)
+month_yield$month<-as.Date(paste(month_yield$year,month_yield$month,"01",sep="-"))
+
+ES.veg14$year<-2014
+ES.veg15$year<-2015
+ES.veg16$year<-2016
+
+shade<-bind_rows(ES.veg14,ES.veg15,ES.veg16)
+
+month_yield<-month_yield %>% select(-X1,-plot,-df.TotRemoved,-TotRemoved,-s.crop,-m.crop,-l.crop,
+                                              -s.harv,-m.harv,-l.harv,-s.bp,-m.bp,-s.cpb,-m.cpb,-s.mam,-m.mam,-l.mam,
+                                              -abs.l.over.,-abs.s.over.,-abs.m.over.,-check,-check2,-date,-treeno.1)
+month_yield<-left_join(month_yield,ES.metdata %>% select(-stress.mm1),by=c("Plot","month"))
+
+write_csv(month_yield,paste0(getwd(),"/Analysis/ElNino/SeasonalAnalysis/MonthlyTree_Yield_Disease_Climate.csv"))
+
+pollin<-left_join(pollin %>% select(-Sciaridae,-Cecidomyiidae,-Indet,-Psychodidae,-Keroplatidae,
+                                    -Empidoidea,-Culcidae,-Ceratopogonidae),shade %>% select(-mDBH,-Shannone),
+                  by=c("Plot","year"))
+write_csv(pollin,paste0(getwd(),"/Analysis/ElNino/SeasonalAnalysis/MonthlyFarm_Fruitset.csv"))
+
+farm <- left_join(ES.management %>% select(-Black.pod,-Black.pod.severity,-Capsid,-Capsid.Severity,-Stem.borer,-Stem.borer.Severity,
+                                 -Mistletoe,-Mistletoe.Severity,-Climbers,-Climbers.Severity,-CSSV,-CSSV.Severity),ES.soil,by="Plot")
+write_csv(farm,paste0(getwd(),"/Analysis/ElNino/SeasonalAnalysis/Farm_Characteristics.csv"))
+
 #add seasonal yield measures
 d.F.14<- ES.yield %>% filter(season=="2014/15")
 d.F.15<- ES.yield %>% filter(season=="2015/16")
@@ -198,9 +231,9 @@ d.F.16.tree<-left_join(d.F.16.tree,ES.soil[,2:ncol(ES.soil)],by="Plot")
 rm(ES.soil)
 
 #add vegetation diversity data
-d.F.14<-left_join(d.F.14,ES.veg14,by="Plot")
-d.F.15<-left_join(d.F.15,ES.veg15,by="Plot")
-d.F.16<-left_join(d.F.16,ES.veg16,by="Plot")
+d.F.14<-left_join(d.F.14,ES.veg14 %>% select(-year),by="Plot")
+d.F.15<-left_join(d.F.15,ES.veg15 %>% select(-year),by="Plot")
+d.F.16<-left_join(d.F.16,ES.veg16 %>% select(-year),by="Plot")
 
 d.F.14.tree<-left_join(d.F.14.tree,ES.veg14,by="Plot")
 d.F.15.tree<-left_join(d.F.15.tree,ES.veg15,by="Plot")
