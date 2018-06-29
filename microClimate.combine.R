@@ -4,7 +4,7 @@ library(gdata)
 library(gridExtra)
 #library(Rmisc)
 #library(ggplot2)
-library(zoo)
+#library(zoo)
 library(tidyverse)
 
 setwd("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/MetData")
@@ -275,7 +275,7 @@ ah[ah$avg<=0&!is.na(ah$avg),"avg"]<-NA
 #vpc <- summarySE(vpd, measurevar="avg", groupvars=c("month","dist"),na.rm=T)
 #vpc$var<-"VPD"
 
-mvpd<-do.call(rbind.data.frame,mVPD)
+mvpd<-do.call(rbind.data.frame,VPD)
 colnames(mvpd)<-c("month","mvpd","name","plotcode","dist")
 #remove -Inf
 mvpd[mvpd$mvpd==-Inf&!is.na(mvpd$mvpd),"mvpd"]<-NA
@@ -493,4 +493,62 @@ for(i in 1:length(m)){
 
 }
 
+#for large metstation
+dF<-read.csv(paste0(getwd(),"/",names[11,"Mstation"],"_summary.csv"))
+#remove NAs
+dF<-dF[!is.na(dF$day),]
+#replace -Inf and & Inf
+dF[dF=="-Inf"&!is.na(dF)]<-NA
+dF[dF=="Inf"&!is.na(dF)]<-NA
+#only take day averages (t3,t4,t5,t6)
+#check if have t2soilT.1
+dF.2<-cbind(dF$Tmax,dF$Tmin,dF$VPDmax,dF$day,dF[,grep("t3",colnames(dF))],dF[,grep("t4",colnames(dF))],dF[,grep("t5",colnames(dF))],dF[,grep("t6",colnames(dF))]) 
 
+#add month
+dF.2$month<-as.Date(cut(as.Date(dF.2$`dF$day`),breaks="month"))
+
+dF.3<-aggregate(dF.2[,grep("ah",colnames(dF.2))],list(dF.2$month),FUN="mean",na.rm=T)
+dF.3$avg<-rowMeans(dF.3[,2:5],na.rm=T)
+dF.3$name<-names[11,"Mstation"]
+dF.3$PlotCode<-"Large MetStation"
+ah<-cbind(dF.3$Group.1,dF.3[,6:8])
+ah <- ah %>% rename(month=`dF.3$Group.1`,ah=avg)
+rm(dF.3)
+dF.3<-aggregate(dF.2[,grep("vpd",colnames(dF.2))],list(dF.2$month),FUN="mean",na.rm=T)
+dF.3$avg<-rowMeans(dF.3[,2:5],na.rm=T)
+dF.3$name<-names[11,"Mstation"]
+dF.3$PlotCode<-"Large MetStation"
+vpd<-cbind(dF.3$Group.1,dF.3[,6:8])
+vpd <- vpd %>% rename(month=`dF.3$Group.1`,vpd=avg)
+rm(dF.3)
+dF.3<-aggregate(dF.2$`dF$VPDmax`,list(dF.2$month),FUN="max")
+dF.3$name<-names[11,"Mstation"]
+dF.3$PlotCode<-"Large MetStation"
+mvpd<-cbind(dF.3$Group.1,dF.3[,2:4])
+mvpd <- mvpd %>% rename(month=`dF.3$Group.1`,vpd.max=x)
+dF.3<-aggregate(dF.2[,grep("Tmax",colnames(dF.2))],list(dF.2$month),FUN="mean",na.rm=T)
+dF.3$name<-names[11,"Mstation"]
+dF.3$PlotCode<-"Large MetStation"
+tmax<-cbind(dF.3$Group.1,dF.3[,2:4])
+tmax <- tmax %>% rename(month=`dF.3$Group.1`,tmax=x)
+rm(dF.3)
+dF.3<-aggregate(dF.2[,grep("Tmin",colnames(dF.2))],list(dF.2$month),FUN="mean")
+dF.3$name<-names[11,"Mstation"]
+dF.3$PlotCode<-"Large MetStation"
+tmin<-cbind(dF.3$Group.1,dF.3[,2:4])
+tmin <- tmin %>% rename(month=`dF.3$Group.1`,tmin=x)
+rm(dF.3)
+dF.3<-aggregate(dF.2[,grep("Tavg",colnames(dF.2))],list(dF.2$month),FUN="mean",na.rm=T)
+dF.3$avg<-rowMeans(dF.3[,2:5],na.rm=T)
+dF.3$name<-names[11,"Mstation"]
+dF.3$PlotCode<-"Large MetStation"
+tavg<-cbind(dF.3$Group.1,dF.3[,6:8])
+tavg <- tavg %>% rename(month=`dF.3$Group.1`,tavg=avg)
+rm(dF.3)
+
+dF.1 <- left_join(ah,vpd,by=c("month","name","PlotCode"))
+dF.1 <- left_join(dF.1,mvpd,by=c("month","name","PlotCode"))
+dF.1 <- left_join(dF.1,tmax,by=c("month","name","PlotCode"))
+dF.1 <- left_join(dF.1,tmin,by=c("month","name","PlotCode"))
+dF.1 <- left_join(dF.1,tavg,by=c("month","name","PlotCode"))
+write_csv(dF.1,paste0(getwd(),"/LargeMetstation_Monthly.csv"))
