@@ -369,4 +369,43 @@ tmp<-et.0 %>% group_by(Plot,month) %>% summarise(maxT=mean(Tmax),minT=mean(Tmin)
 #write out stress indices per month
 write.csv(tmp,paste0(getwd(),"/MonthlyStress_estimates.csv"))
 
+#create figure of monthly average microclimate values
+library(ggpubr)
 
+clim<-read_csv(paste0(getwd(),"/MonthlyStress_estimates.csv"))
+#remove negative values
+clim <- clim %>% mutate(maxT=replace(maxT,maxT<0,NA),maxVPD=replace(maxVPD,maxVPD<0,NA))
+#pull out metstations
+m_stations<-data_frame(gsub(" ","",as.character(names[1:10,"Plot.2"])))
+colnames(m_stations)<-"Plot"
+m_stations$one<-1
+
+sub_clim<-left_join(clim,m_stations,by="Plot") %>% filter(one==1) %>%
+  mutate(LandCover="Cocoa") %>% mutate(LandCover=replace(LandCover,Plot=="HMFP"|Plot=="KAFP","Forest")) %>%
+  mutate(LandCover=replace(LandCover,Plot=="HM5KF2","High Shade Cocoa"))
+
+sub_clim$no_month<-month.abb[month(sub_clim$month)]
+sub_clim$no_month<-factor(sub_clim$no_month,levels=c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"),ordered=T)
+sub_clim$LandCover<-factor(sub_clim$LandCover,levels=c("Forest","High Shade Cocoa","Cocoa"),ordered=T)
+
+sum_clim<-sub_clim %>% group_by(no_month,LandCover) %>% 
+  summarise(maxT=mean(maxT,na.rm=T),maxVPD=mean(maxVPD,na.rm=T))
+
+sum_clim.se<-sub_clim %>% group_by(no_month,LandCover) %>% 
+  summarise(maxT.se=sd(maxT,na.rm=T)/sqrt(length(unique(Plot))),no_length=length(unique(Plot)),maxVPD.se=sd(maxVPD,na.rm=T)/sqrt(length(unique(Plot))))
+
+sum_clim<-left_join(sum_clim,sum_clim.se,by=c("no_month","LandCover"))
+
+#g1<-
+ggplot(sum_clim,aes(no_month,maxT,group=factor(LandCover))) + geom_line(aes(linetype=factor(LandCover))) +
+  geom_errorbar(aes(ymin=maxT-maxT.se,ymax=maxT+maxT.se),width=0.1) +
+  theme_classic() + xlab("Month") + ylab("Monthly Maximum Temperature [C]") + 
+  theme(legend.title=element_blank(),legend.position="bottom", text=element_text(size=20),plot.background = element_blank())+
+  ylim(20,34)
+ggsave(paste0(getwd(),"/MaxTemp.monthly_Cocoa.v.Forest.pdf"))
+
+#g2<-ggplot(sum_clim,aes(no_month,maxVPD,group=factor(LandCover))) + geom_line(aes(colour=factor(LandCover))) +
+#  geom_errorbar(aes(ymin=maxVPD-maxVPD.se,ymax=maxVPD+maxVPD.se,colour=factor(LandCover)),width=0.1) +
+#  theme_classic() + xlab("Month") + ylab("Monthly Maximum Vapour Pressure Deficit [hPa]") + theme(legend.title=element_blank(),legend.position="bottom")
+
+#ggarrange(g1,g2,ncol=2,nrow=1,common.legend=T)
