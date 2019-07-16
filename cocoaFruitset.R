@@ -251,6 +251,16 @@ dF <- left_join(dF,tmp %>% select(Plot,Tree.No,month,Biomass,Banana),by=c("Plot"
 
 write.csv(dF,paste0(getwd(),"/Fruitset_monthly_pertree.csv"))
 
+#produce plot level monthly averages of fruitset measures
+summ<-dF %>% group_by(Plot,month) %>% summarise(FBuds=mean(Fb,na.rm=T),Flowers=mean(Fo,na.rm=T),
+                                       Chset=mean(chset,na.rm=T),SBT=mean(NoSBT,na.rm=T),
+                                       DBT=mean(NoDBT,na.rm=T)) %>% ungroup()
+
+write.csv(summ,paste0(getwd(),"Chset_allplots_allmonths.csv"))
+
+
+
+
 #calculate podset
 #pset<-ddply(dF,.(Plot,TreeNo),transform,ChTot=cumsum(SumCh),PuTot=cumsum(SumPu),PuTot.L=cumsum(SumPu.lost),PrTot=cumsum(SumPr),PrTot.H=cumsum(SumPr.harv))
 

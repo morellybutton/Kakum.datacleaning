@@ -134,18 +134,18 @@ ES.metdata<-data_frame(Plot=ES.metdata$Plot,month=as.Date(ES.metdata$month),Tmax
 
 month.metdata<-read.csv(paste0(getwd(),"/MetData/MonthlyStress_estimates.csv"))
 
-month.yield$plot<-gsub(" ","",month.yield$plot)
+month.yield$Plot<-gsub(" ","",month.yield$plot)
 month.yield$month<-as.Date(paste("01",month.yield$month,month.yield$year,sep="-"),"%d-%m-%Y")
-month.metdata<-month.metdata %>% rename(plot=Plot)
+#month.metdata<-month.metdata %>% rename(plot=Plot)
 month.metdata$month<-as.Date(month.metdata$month)
 
-monthly<-left_join(month.yield %>% select(-X),month.metdata %>% select(-X),by=c("plot","month"))
+monthly<-left_join(month.yield %>% select(-X),month.metdata %>% select(-X),by=c("Plot","month"))
 
-ES.soil <- ES.soil %>% rename(plot=Plot)
-monthly<-left_join(monthly,ES.soil,by="plot")
+#ES.soil <- ES.soil %>% rename(plot=Plot)
+monthly<-left_join(monthly,ES.soil,by="Plot")
 
-ps<-ns %>% rename(plot=Plot)
-monthly<-left_join(monthly,ps,by="plot")
+#ps<-ns %>% rename(plot=Plot)
+monthly<-left_join(monthly,ns,by="Plot")
 
 write_csv(monthly,paste0(getwd(),"/Analysis/ElNino/SeasonalAnalysis/MonthlyTree_Yield_Disease_Climate.csv"))
 
