@@ -41,7 +41,7 @@ for(i in 1:length(fs)){
     
     final.2<-list()
     for(k in 1:(length(index)-1)){
-      final.1<-data.frame(Transect=character(),Plot=character(),Dist=numeric(),Season=character(),Date=as.Date(character()),Canopy=numeric(),LAI=numeric(),Capsids=numeric(),Intensity=numeric(),Mistletoe=numeric(),Hour=numeric(),Species=character(),Distance=numeric(),NoIndividuals=numeric(),Seen_Heard=character(),PrimaryForest=numeric(),SecondaryForest=numeric(),ForestEdge=numeric(),Woodland=numeric(),Agriculture=numeric(),Settlements=numeric(),StructCanopy=numeric(),StructMidStorey=numeric(),StructUnderStory=numeric(),StructGround=numeric(),StructAllLevels=numeric(),Frugivore=numeric(),Omnivore=numeric(),Insectivore=numeric(),Orthoptera=numeric(),Hemiptera=numeric(),Coleoptera=numeric(),Lepidoptera=numeric(),Diptera=numeric(),Isoptera=numeric(),Diplopoda=numeric(),Odonata=numeric(),Hymenoptera=numeric(),stringsAsFactors=FALSE)
+      final.1<-data.frame(Transect=character(),Plot=character(),Dist=numeric(),Season=character(),Date=as.Date(character()),Canopy=numeric(),LAI=numeric(),Capsids=numeric(),Intensity=numeric(),Mistletoe=numeric(),Hour=numeric(),Species=character(),Distance=numeric(),NoIndividuals=numeric(),Seen_Heard=character(),PrimaryForest=numeric(),SecondaryForest=numeric(),ForestEdge=numeric(),Woodland=numeric(),Agriculture=numeric(),Settlements=numeric(),StructCanopy=numeric(),StructMidStorey=numeric(),StructUnderStory=numeric(),StructAllLevels=numeric(),Frugivore=numeric(),Omnivore=numeric(),Insectivore=numeric(),Orthoptera=numeric(),Hemiptera=numeric(),Coleoptera=numeric(),Lepidoptera=numeric(),Diptera=numeric(),Isoptera=numeric(),Diplopoda=numeric(),Odonata=numeric(),Hymenoptera=numeric(),stringsAsFactors=FALSE)
       pct<-dF[index[k]:(index[k+1]-1),]
       #extract plot number
       p<-as.character(pct[1,5])
@@ -74,8 +74,8 @@ for(i in 1:length(fs)){
       final.1[2:length(sp[,1]),1:11]<-final.1[1,1:11]
       for(m in 1:length(sp[,1])){
         final.1[m,12:15]<-c(paste(sp[m,10],sp[m,11]),as.numeric(as.character(sp[m,4])),as.numeric(as.character(sp[m,"NoIndividuals"])),as.character(sp[m,7]))
-        final.1[m,16:26]<-sp[m,12:22]
-        final.1[m,27:38]<-c(as.numeric(sp[m,23]),as.numeric(sp[m,26:29]),as.numeric(sp[m,31:37]))
+        final.1[m,16:25]<-sp[m,12:21]
+        final.1[m,26:37]<-c(as.numeric(sp[m,22]),as.numeric(sp[m,25:28]),as.numeric(sp[m,30:36]))
       }
       #add 1 if no count of individuals
       final.1[is.na(final.1$NoIndividuals),"NoIndividuals"]<-1

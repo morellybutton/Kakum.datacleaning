@@ -1,11 +1,11 @@
 #creation of dataset for analysis of cocoa ES benefits/dis-benefits
-library(stringr)
+#library(stringr)
 #library(corrplot)
 #library(plyr)
 library(gdata)
 library(lubridate)
 #library(reshape2)
-library(lattice)
+#library(lattice)
 library(tidyverse)
 
 #detach("package:arm", unload=TRUE)
@@ -32,6 +32,10 @@ ES.yield <- ES.yield.tree %>% group_by(Plot,season,tree_size) %>%
   summarise(HeavyCrop = median(HeavyCrop),LightCrop=median(LightCrop),Distance=mean(Distance),Transect=unique(Transect),no.tree=length(tree_size)) %>% filter(no.tree>=5)
 yield.all <- ES.yield.tree %>% group_by(Plot,season) %>% summarise(HeavyCrop=median(HeavyCrop,na.rm=T),LightCrop=median(LightCrop,na.rm=T),tree_size="all",Distance=mean(Distance),Transect=unique(Transect),no.tree=length(Plot))
 ES.yield <- bind_rows(ES.yield,yield.all)
+
+#create dataset of monthly measures
+month.yield<-read.csv(paste0(getwd(),"/Yield/Monthly_podremovals.csv"))
+
 
 #load pollinator data
 #ES.pollinos<-read.csv(paste0(getwd(),"/Pollination/Pollinator.nos.HC1415.csv"))
@@ -128,6 +132,23 @@ ES.fruit16<-left_join(ES.fruit16,treat,by="Plot")
 ES.metdata<-read.csv(paste0(getwd(),"/MetData/MonthlyStress_estimates.csv"))
 ES.metdata<-data_frame(Plot=ES.metdata$Plot,month=as.Date(ES.metdata$month),Tmax=ES.metdata$maxT,Tmin=ES.metdata$minT,Tmean=ES.metdata$meanT,maxVPD=ES.metdata$maxVPD,meanRH=ES.metdata$meanRH,stress.mm=ES.metdata$stress.mm,stress.mm1=ES.metdata$stress.mm.1)
 
+month.metdata<-read.csv(paste0(getwd(),"/MetData/MonthlyStress_estimates.csv"))
+
+month.yield$plot<-gsub(" ","",month.yield$plot)
+month.yield$month<-as.Date(paste("01",month.yield$month,month.yield$year,sep="-"),"%d-%m-%Y")
+month.metdata<-month.metdata %>% rename(plot=Plot)
+month.metdata$month<-as.Date(month.metdata$month)
+
+monthly<-left_join(month.yield %>% select(-X),month.metdata %>% select(-X),by=c("plot","month"))
+
+ES.soil <- ES.soil %>% rename(plot=Plot)
+monthly<-left_join(monthly,ES.soil,by="plot")
+
+ps<-ns %>% rename(plot=Plot)
+monthly<-left_join(monthly,ps,by="plot")
+
+write_csv(monthly,paste0(getwd(),"/Analysis/ElNino/SeasonalAnalysis/MonthlyTree_Yield_Disease_Climate.csv"))
+
 #get vegetation stress data for each year
 ES.metdata14<-ES.metdata %>% filter(month<="2015-06-01") %>% group_by(Plot) %>%
   summarise(Tmax=mean(Tmax,na.rm=T),Tmin=mean(Tmin,na.rm=T),Tmean=mean(Tmean,na.rm=T),maxVPD=mean(maxVPD,na.rm=T),meanRH=mean(meanRH,na.rm=T),stress.mm=mean(stress.mm,na.rm=T),stress.mm1=mean(stress.mm1,na.rm=T))
@@ -187,7 +208,7 @@ month_yield<-month_yield %>% select(-X1,-plot,-df.TotRemoved,-TotRemoved,-s.crop
                                               -abs.l.over.,-abs.s.over.,-abs.m.over.,-check,-check2,-date,-treeno.1)
 month_yield<-left_join(month_yield,ES.metdata %>% select(-stress.mm1),by=c("Plot","month"))
 
-write_csv(month_yield,paste0(getwd(),"/Analysis/ElNino/SeasonalAnalysis/MonthlyTree_Yield_Disease_Climate.csv"))
+#write_csv(month_yield,paste0(getwd(),"/Analysis/ElNino/SeasonalAnalysis/MonthlyTree_Yield_Disease_Climate.csv"))
 
 pollin<-left_join(pollin %>% select(-Sciaridae,-Cecidomyiidae,-Indet,-Psychodidae,-Keroplatidae,
                                     -Empidoidea,-Culcidae,-Ceratopogonidae),shade %>% select(-mDBH,-Shannone),
@@ -331,7 +352,7 @@ for(i in 1:length(year)){
   d.F.plot <- left_join(d.F.plot,y.ld1 %>% select(plot,Yield.cv),by="plot")
   d.F.plot <- left_join(d.F.plot,f.rt1,by="plot")
   
-  combo[[i]] <- d.F.plot %>% select(plot,Transect,tree_size,season,HeavyCrop,LightCrop,PropCPB,PropBP,Mist,Biomass,Distance,distance.cont,Cocoa.density,Shade.density,Shannoni,BALegume,Canopy.gap.dry,CN.ratio,Tot.P,K.meq,pH,soil.moist,Tmax,Tmin,maxVPD,Chset,SBT,No.applications.yr)
+  combo[[i]] <- d.F.plot %>% select(plot,Transect,tree_size,season,HeavyCrop,LightCrop,PropCPB,PropBP,Mist,Biomass,Distance,distance.cont,Age.of.cocoa,Cocoa.density,Shade.density,Shannoni,BALegume,Canopy.gap.dry,CN.ratio,Tot.P,K.meq,pH,soil.moist,stress.mm,Tmax,Tmin,maxVPD,Chset,SBT,No.applications.yr)
   
   #make sure binary variables are factors
   d.F.plot$Fertliser.bin<-0

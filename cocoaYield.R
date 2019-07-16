@@ -1,12 +1,12 @@
 #calculation of yield from standing crop/disease survey measures and comparison with other yield measures
 
 #library(ggplot2)
-require(grid)
-library(reshape2)
+#require(grid)
+#library(reshape2)
 library(lubridate)
-library(gdata)
+#library(gdata)
 #library(plyr)
-library(stringr)
+#library(stringr)
 library(tidyverse)
 
 plots<-read.csv(paste0("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/plots.csv"))

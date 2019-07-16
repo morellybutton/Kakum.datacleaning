@@ -5,23 +5,26 @@ library(gdata)
 #library(ggplot2)
 library(lubridate)
 #library(plyr)
-library(reshape2)
+#library(reshape2)
 library(tidyverse)
 #library(xts)
 
 setwd("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/Disease")
 
 #dates=c("Jan","Feb","Mar","Apr","May","June","July","Aug","Sept","Oct","Nov","Dec")
-#dates=c("June","Aug","Sept","Oct","Nov")
-dates=c("Jan","Feb","Mar","Apr","May","June")
+#dates=c("Jan","Feb","Mar","Apr","May","June","July","Aug","Sept","Oct","Nov")
+dates=c("June","Aug","Sept","Oct","Nov")
+
+#dates=c("Jan","Feb","Mar","Apr","May","June")
 topics=c("(tree)","(CPD)")
-year<-"2017"
+year<-"2014"
 trans<-c("AB","HM","KA")
 ns<-read.csv("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/plots.csv")
 
-
 final.2<-list()
 #final.2<-list()
+PodCounts<-list()
+
 for( i in 1:length(dates)){
   final.1<-list()
   #open tree sheet
@@ -63,6 +66,7 @@ for( i in 1:length(dates)){
     #add CPB intensity column
     dataS.1[,"iCPB"]=0
     
+    cpd1<-list()
     for(k in 1:length(p)){
       #pull out trees for each plot
       w<-dataS.1[grep(p[k],as.character(dataS.1$Plot)),]
@@ -73,11 +77,15 @@ for( i in 1:length(dates)){
       id<-na.omit(id)
       if(length(id[,1])==0) dataS.1[,"iCPB"]=0
       if(length(id[,1])==0) next
+      
       cpd<-dataB[grep(p[k],as.character(dataB[,1])),]
-      x<-unique(as.character(cpd[,2]))
+      colnames(cpd)<-c("Plot","TreeNo","Subplot","PodNo","CPBCount","NoLarvae","NoAdults")
+      if(nrow(cpd)>0) {cpd<-cpd[,1:7] ;cpd$date<-dt ; cpd1[[k]]<-cpd}
+      
+      x<-unique(as.character(cpd$TreeNo))
       X<-str_split_fixed(x, " ", 2)
       #separate CPD tree tag numbers from cocoa tree numbers
-      pods<-str_split_fixed(cpd$X, " ", 2)
+      pods<-str_split_fixed(cpd$TreeNo, " ", 2)
       iD<-str_split_fixed(id[,1], " ", 2)
       #check if have same number of cpd in tree and CPD sheet
       #if mistake is in CPD sheet
@@ -105,6 +113,7 @@ for( i in 1:length(dates)){
       }
       rm(pods,id,iD,cpd)
     }
+    
     #identify incidence of mammal attack
     #dataS.1$X.10<-0
     dataS.1[grep("rodent",dataS.1$Notes),"Mammal"]=1
@@ -128,14 +137,20 @@ for( i in 1:length(dates)){
     final.1[[j]]<-dataS.1
   }
   final<-do.call(rbind.data.frame,final.1)
+  PodCounts[[i]]<-do.call(rbind.data.frame,cpd1)
   #colnames(final)<-c("Plot","Tree Number","Subplot No","No. Small Pods (Total)","No. Small Pods (overipe)","No. Med Pods (Total)","No Med Pods (overipe)","No Large Pods (Total)", "No Large Pods (overipe)","No Pods with Capsids","No. Black Pods","No. Pods with Mammal Attack","Creepers","Mistletoe","Stem Borer","No. Ant Tents","Soil Moisture (%)","Date","CPB")
   #sort data sheet by plot number
   final.2[[i]]<-final[do.call(order,final),]
+  rm(cpd1)
 }
 final<-do.call(rbind.data.frame,final.2)
 #save datasheet for each month
 write.csv(final,paste0(getwd(),"/Disease_",year,"_summary.csv"))
-rm(final,d,final.1,final.2,dataB,dataS,dataS.1)
+
+p.count<-do.call(rbind.data.frame,PodCounts)
+write.csv(p.count,paste0(getwd(),"/Disease.pods.",year,"_summary.csv"))
+
+rm(final,d,final.1,final.2,dataB,dataS,dataS.1,PodCounts,p.count)
 
 #generate monthly measure metrics for disease incidence by plot
 #cocoa pod production

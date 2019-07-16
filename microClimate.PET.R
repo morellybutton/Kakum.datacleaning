@@ -395,12 +395,17 @@ sum_clim.se<-sub_clim %>% group_by(no_month,LandCover) %>%
   summarise(maxT.se=sd(maxT,na.rm=T)/sqrt(length(unique(Plot))),no_length=length(unique(Plot)),maxVPD.se=sd(maxVPD,na.rm=T)/sqrt(length(unique(Plot))))
 
 sum_clim<-left_join(sum_clim,sum_clim.se,by=c("no_month","LandCover"))
-
+#add color to define wet season, March-July, September-November
+wet_season = data.frame(x1=c("Mar","Sep"),x2=c("Jul","Nov"), y1=c(-Inf,-Inf), y2=c(Inf,Inf))
+wet_season$x1<-factor(wet_season$x1,levels=c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"),ordered=T)
+wet_season$x2<-factor(wet_season$x2,levels=c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"),ordered=T)
+wet_season = data_frame(x1=c(3,9),x2=c(7,11), y1=c(-Inf,-Inf), y2=c(Inf,Inf))
 #g1<-
-ggplot(sum_clim,aes(no_month,maxT,group=factor(LandCover))) + geom_line(aes(linetype=factor(LandCover))) +
-  geom_errorbar(aes(ymin=maxT-maxT.se,ymax=maxT+maxT.se),width=0.1) +
+ggplot(sum_clim,aes(no_month,maxT,group=factor(LandCover))) + geom_line(aes(linetype=factor(LandCover)),size=1) +
+  geom_errorbar(aes(ymin=maxT-maxT.se,ymax=maxT+maxT.se),width=0.1,size=1) +
   theme_classic() + xlab("Month") + ylab("Monthly Maximum Temperature [C]") + 
-  theme(legend.title=element_blank(),legend.position="bottom", text=element_text(size=20),plot.background = element_blank())+
+  theme(legend.title=element_blank(),legend.position="bottom", text=element_text(size=24),plot.background = element_blank())+
+  annotate("rect", xmin=c(3,9), xmax=c(7,11), ymin=c(-Inf,-Inf), ymax=c(Inf,Inf), fill='blue', alpha=0.2) +
   ylim(20,34)
 ggsave(paste0(getwd(),"/MaxTemp.monthly_Cocoa.v.Forest.pdf"))
 

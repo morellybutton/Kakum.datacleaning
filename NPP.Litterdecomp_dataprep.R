@@ -6,11 +6,11 @@
 setwd("/Volumes/ELDS/ECOLIMITS/Ghana/Kakum/NPP/")
 
 # load libraries
-library(scales)
-library(zoo)
-require(ggplot2)
+#library(scales)
+#library(zoo)
+#require(ggplot2)
 library(gridExtra)
-
+library(tidyverse)
 # this is what we have in db:
 #names(data.flf) <- c("plot_code", "year","month", "day","litterfall_trap_num", "litterfall_trap_size_m2","leaves_g_per_trap","twigs_g_per_trap","flowers_g_per_trap","fruits_g_per_trap",
 # "bromeliads_g_per_trap", "epiphytes_g_per_trap","other_g_per_trap", "palm_leaves_g", "palm_flower_g", "palm_fruit_g", "quality_code", "comments")
@@ -27,6 +27,8 @@ for(p in 1:length(plotnames)){
   plotname<-plotnames[p]
   data.flf <- read.table(paste0(getwd(),"/Litter Data/FLF_",gsub(" ","",plotname),"_",year1,"_",year2,".csv"), sep=",", header=T)
   
+  #remove negative values
+  data.flf <- data.flf %>% mutate_if(is.double,funs(replace(., .<0, NA)))
   #plotname = "KA FP"
   #str(data.flf)
   
@@ -104,17 +106,17 @@ for(p in 1:length(plotnames)){
       # multiply small plot by 400 = 10,000/25*(0.5*0.5)m2 = 1600
       # convert to MgC ha month # multiply by 2 because collected twice a month (see comments below on how to change this to daily)
       
-      la = (10000/0.25)*2
+      la = (10000/0.25)
       
       ## calculate monthly means in each year:
       for (j in fir_year:fir_yeare) {
         m=1
         for (i in fir_mon:12) {
           ind = which(monthfA==i & yearfA==j & pointfA==k)
+          if(length(ind)==0) next
           
-          # multiply by 2 because collected twice a month
-          totflfAs[m,n] = mean(totalfA[ind],na.rm=T)*(la/(2.032*1000000)) # Mg/ha convert to carbon divide by 2
-          totflfAsstd[m,n] = (sd(totalfA[ind],na.rm=T)*(la/(2.032*1000000)))/sqrt(num.lf)  # should be sqrt(length(totalfA))
+          if(length(ind)>1) totflfAs[i,n] = sum(totalfA[ind],na.rm=T)*(la/(2.032*1000000)) else totflfAs[i,n] = 2*totalfA[ind]*(la/(2.032*1000000))# Mg/ha convert to carbon divide by 2
+          totflfAsstd[i,n] = (sd(totalfA[ind],na.rm=T)*(la/(2.032*1000000)))/sqrt(length(ind)) # should be sqrt(length(totalfA))
           
           # Terhi suggests calculating per litter trap and getting SE per litter trap:
           # Calculate MgC/ trap/ collection interval
@@ -124,23 +126,23 @@ for(p in 1:length(plotnames)){
           # se_avg1 <- sd(avg1)/sqrt(length(avg1)).
           # this would provide a unit per day. g / m2/ day.
           
-          seedsfAs[m,n] = mean(seedsfA[ind],na.rm=T)*(la/(2.032*1000000))
-          seedsfAsstd[m,n] = sd(seedsfA[ind],na.rm=T)*(la/(2.032*1000000))/sqrt(num.lf) 
+          if(length(ind)>1) seedsfAs[i,n] = sum(seedsfA[ind],na.rm=T)*(la/(2.032*1000000)) else  seedsfAs[i,n] = 2*(seedsfA[ind])*(la/(2.032*1000000))
+          seedsfAsstd[i,n] = sd(seedsfA[ind],na.rm=T)*(la/(2.032*1000000))/sqrt(length(ind))
           
-          leafflfAs[m,n] = mean(leaffA[ind],na.rm=T)*(la/(2.032*1000000))
-          leafflfAsstd[m,n] = sd(leaffA[ind],na.rm=T)*(la/(2.032*1000000))/sqrt(num.lf)
+          if(length(ind)>1) leafflfAs[i,n] = sum(leaffA[ind],na.rm=T)*(la/(2.032*1000000)) else leafflfAs[i,n] = 2*(leaffA[ind])*(la/(2.032*1000000))
+          leafflfAsstd[i,n] = sd(leaffA[ind],na.rm=T)*(la/(2.032*1000000))/sqrt(length(ind))
           
-          leafflfcAs[m,n] = mean(leaffcA[ind],na.rm=T)*(la/(2.032*1000000))
-          leafflfcAsstd[m,n] = sd(leaffcA[ind],na.rm=T)*(la/(2.032*1000000))/sqrt(num.lf)
+          if(length(ind)>1) leafflfcAs[i,n] = sum(leaffcA[ind],na.rm=T)*(la/(2.032*1000000)) else leafflfcAs[i,n] = 2*(leaffcA[ind])*(la/(2.032*1000000))
+          leafflfcAsstd[i,n] = sd(leaffcA[ind],na.rm=T)*(la/(2.032*1000000))/sqrt(length(ind))
           
-          fruitflfAs[m,n] = mean(fruitfA[ind],na.rm=T)*(la/(2.032*1000000))
-          fruitflfAsstd[m,n] = (sd(fruitfA[ind],na.rm=T)*(la/(2.032*1000000)))/sqrt(num.lf)
+          if(length(ind)>1) fruitflfAs[i,n] = sum(fruitfA[ind],na.rm=T)*(la/(2.032*1000000)) else fruitflfAs[i,n] = 2*(fruitfA[ind])*(la/(2.032*1000000)) 
+          fruitflfAsstd[i,n] = (sd(fruitfA[ind],na.rm=T)*(la/(2.032*1000000)))/sqrt(length(ind))
           
-          flowerflfAs[m,n] = mean(flowerfA[ind],na.rm=T)*(la/(2.032*1000000))
-          flowerflfAsstd[m,n] = (sd(flowerfA[ind])*(la/(2.032*1000000)))/sqrt(num.lf)
+          if(length(ind)>1) flowerflfAs[i,n] = sum(flowerfA[ind],na.rm=T)*(la/(2.032*1000000)) else flowerflfAs[i,n] = 2*(flowerfA[ind])*(la/(2.032*1000000))
+          flowerflfAsstd[i,n] = (sd(flowerfA[ind])*(la/(2.032*1000000)))/sqrt(length(ind))
           
-          branchflfAs[m,n] = mean(branchfA[ind],na.rm=T)*(la/(2.032*1000000))
-          branchflfAsstd[m,n] = (sd(branchfA[ind],na.rm=T)*(la/(2.032*1000000)))/sqrt(num.lf)
+          if(length(ind)>1) branchflfAs[i,n] = sum(branchfA[ind],na.rm=T)*(la/(2.032*1000000)) else branchflfAs[i,n] = 2*(branchfA[ind])*(la/(2.032*1000000)) 
+          branchflfAsstd[i,n] = (sd(branchfA[ind],na.rm=T)*(la/(2.032*1000000)))/sqrt(length(ind))
           
           # Add a column for reproductive material
           
@@ -209,6 +211,8 @@ for(p in 1:length(plotnames)){
      
     #do again for quarterly measures
     data.flf <- read.table(paste0(getwd(),"/FineLitterFall/FLFQ_",gsub(" ","",plotname),"_",year1,"_",year2,".csv"), sep=",", header=T)
+    #remove negative values
+    data.flf <- data.flf %>% mutate_if(is.double,funs(replace(., .<0, NA)))
     
     #plotname = "KA FP"
     #str(data.flf)
@@ -239,7 +243,7 @@ for(p in 1:length(plotnames)){
       totalfA[i] = sum(leaffA[i], leaffcA[i], branchfA[i], flowerfA[i], fruitfA[i], seedsfA[i], BromfA[i], EpiphfA[i], otherfA[i], na.rm=T)
     }
     
-    totalfA[which(totalfA>300)] <- NA   # remove outliers with totalf > 300
+    totalfA[which(totalfA>500)] <- NA   # remove outliers with totalf > 300
     totalfA[which(totalfA<0)]   <- NA   # remove implausible totallf (negative litter)
     
     # Calculate leaf area ****need density from photos, we assume average SLA = 100g/m2
@@ -290,12 +294,12 @@ for(p in 1:length(plotnames)){
       for (i in 1:length(flf_dates)) {
         ind = which(dayfa == flf_dates[i] & pointfA==k)
         #calculate date difference
-        if(i==1)  datediff <-1 else datediff  <- 29.6/as.numeric(data.frame(diff(c(flf_dates[i-1],flf_dates[i]))))
+        if(i==1)  datediff <-1 else datediff <- 29.6/as.numeric(data.frame(diff(c(flf_dates[i-1],flf_dates[i]))))
         #divide mean by days and multiply by days in month
         totflfAs[i,1] = mean(totalfA[ind],na.rm=T)*(la/(2.032*1000000)) # Mg/ha convert to carbon divide by 2
-        totflfAsstd[i,1] = (sd(totalfA[ind],na.rm=T)*(la/(2.032*1000000)))/sqrt(max(data.flf$litterfall_trap_num))  # should be sqrt(length(totalfA))
+        totflfAsstd[i,1] = (sd(totalfA[ind],na.rm=T)*(la/(2.032*1000000)))  # should be sqrt(length(totalfA))
         totflfAs[i,2]<-mean(totalfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff
-        totflfAsstd[i,2] = (sd(totalfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff)/sqrt(max(data.flf$litterfall_trap_num))  # should be sqrt(length(totalfA))
+        totflfAsstd[i,2] = (sd(totalfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff)  # should be sqrt(length(totalfA))
         
         # Terhi suggests calculating per litter trap and getting SE per litter trap:
         # Calculate MgC/ trap/ collection interval
@@ -306,34 +310,34 @@ for(p in 1:length(plotnames)){
         # this would provide a unit per day. g / m2/ day.
         
         seedsfAs[i,1] = mean(seedsfA[ind],na.rm=T)*(la/(2.032*1000000))
-        seedsfAsstd[i,1] = sd(seedsfA[ind],na.rm=T)*(la/(2.032*1000000))/sqrt(max(data.flf$litterfall_trap_num)) 
+        seedsfAsstd[i,1] = sd(seedsfA[ind],na.rm=T)*(la/(2.032*1000000))
         seedsfAs[i,2] = mean(seedsfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff
-        seedsfAsstd[i,2] = (sd(seedsfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff)/sqrt(max(data.flf$litterfall_trap_num))  # should be sqrt(length(totalfA))
+        seedsfAsstd[i,2] = (sd(seedsfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff) # should be sqrt(length(totalfA))
         
         leafflfAs[i,1] = mean(leaffA[ind],na.rm=T)*(la/(2.032*1000000))
-        leafflfAsstd[i,1] = sd(leaffA[ind],na.rm=T)*(la/(2.032*1000000))/sqrt(max(data.flf$litterfall_trap_num))
+        leafflfAsstd[i,1] = sd(leaffA[ind],na.rm=T)*(la/(2.032*1000000))
         leafflfAs[i,2] = mean(leaffA[ind],na.rm=T)*(la/(2.032*1000000))*datediff
-        leafflfAsstd[i,2] = sd(leaffA[ind],na.rm=T)*(la/(2.032*1000000)*datediff)/sqrt(max(data.flf$litterfall_trap_num))
+        leafflfAsstd[i,2] = sd(leaffA[ind],na.rm=T)*(la/(2.032*1000000)*datediff)
         
         leafflfcAs[i,1] = mean(leaffcA[ind],na.rm=T)*(la/(2.032*1000000))
-        leafflfcAsstd[i,1] = sd(leaffcA[ind],na.rm=T)*(la/(2.032*1000000))/sqrt(max(data.flf$litterfall_trap_num))
+        leafflfcAsstd[i,1] = sd(leaffcA[ind],na.rm=T)*(la/(2.032*1000000))
         leafflfcAs[i,2] = mean(leaffcA[ind],na.rm=T)*(la/(2.032*1000000))*datediff
-        leafflfcAsstd[i,2] = sd(leaffcA[ind],na.rm=T)*(la/(2.032*1000000)*datediff)/sqrt(max(data.flf$litterfall_trap_num))
+        leafflfcAsstd[i,2] = sd(leaffcA[ind],na.rm=T)*(la/(2.032*1000000)*datediff)
         
         fruitflfAs[i,1] = mean(fruitfA[ind],na.rm=T)*(la/(2.032*1000000))
-        fruitflfAsstd[i,1] = (sd(fruitfA[ind],na.rm=T)*(la/(2.032*1000000)))/sqrt(max(data.flf$litterfall_trap_num))
+        fruitflfAsstd[i,1] = (sd(fruitfA[ind],na.rm=T)*(la/(2.032*1000000)))
         fruitflfAs[i,2] = mean(fruitfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff
-        fruitflfAsstd[i,2] = (sd(fruitfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff)/sqrt(max(data.flf$litterfall_trap_num))
+        fruitflfAsstd[i,2] = (sd(fruitfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff)
         
         flowerflfAs[i,1] = mean(flowerfA[ind],na.rm=T)*(la/(2.032*1000000))
-        flowerflfAsstd[i,1] = (sd(flowerfA[ind])*(la/(2.032*1000000)))/sqrt(max(data.flf$litterfall_trap_num))
+        flowerflfAsstd[i,1] = (sd(flowerfA[ind])*(la/(2.032*1000000)))
         flowerflfAs[i,2] = mean(flowerfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff
-        flowerflfAsstd[i,2] = (sd(flowerfA[ind])*(la/(2.032*1000000))*datediff)/sqrt(max(data.flf$litterfall_trap_num))
+        flowerflfAsstd[i,2] = (sd(flowerfA[ind])*(la/(2.032*1000000))*datediff)
         
         branchflfAs[i,1] = mean(branchfA[ind],na.rm=T)*(la/(2.032*1000000))
-        branchflfAsstd[i,1] = (sd(branchfA[ind],na.rm=T)*(la/(2.032*1000000)))/sqrt(max(data.flf$litterfall_trap_num))
+        branchflfAsstd[i,1] = (sd(branchfA[ind],na.rm=T)*(la/(2.032*1000000)))
         branchflfAs[i,2] = mean(branchfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff
-        branchflfAsstd[i,2] = (sd(branchfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff)/sqrt(max(data.flf$litterfall_trap_num))
+        branchflfAsstd[i,2] = (sd(branchfA[ind],na.rm=T)*(la/(2.032*1000000))*datediff)
         
         # Add a column for reproductive material
         

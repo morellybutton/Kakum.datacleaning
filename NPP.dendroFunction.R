@@ -11,9 +11,9 @@
 library(gdata)
 library(lubridate)
 library(ggplot2)
-library(scales)
-library(plyr)
-library(reshape)
+#library(scales)
+#library(plyr)
+#library(reshape)
 library(tidyverse)
 
 #run allometric equation
@@ -129,7 +129,7 @@ for(p in 1:length(trans)){
     #pull out genera from missing species
     wdens$genus <- str_split_fixed(wdens$species," ",2)[,1]
     wdg<-left_join(wdens %>% select(genus),w.dens %>% select(family,genus,wood_density_g_m2),by="genus")
-    wdg <- wdg %>% group_by(genus) %>% summarise(gen.wood_density = mean(wood_density_g_m2,na.rm=T))
+    wdg <- wdg %>% group_by(genus) %>% summarise(gen.wood_density = mean(wood_density_g_m2,na.rm=T)) %>% ungroup()
     wdens <- left_join(wdens,wdg,by="genus")
     wdens <- wdens %>% mutate(wood_density_g_m2=replace(wood_density_g_m2,is.na(wood_density_g_m2),gen.wood_density[is.na(wood_density_g_m2)]))
     #pull out missing family
@@ -153,18 +153,18 @@ for(p in 1:length(trans)){
     census1$dbh<-as.numeric(census1$dbh)/cf
     
       # load libraries
-      library(sqldf)
+    # library(sqldf)
     
     
     ## get the data you need from the census file into the dendrometer data frame: density, height, first dbh measurement, date of first dbh measurement
     #dend <- sqldf("SELECT dend1.*, cen.density, cen.height_m, cen.dbh, cen.cenyear, cen.cenmonth, cen.cenday FROM cen JOIN dend1 ON cen.TagNo = dend1.tree_tag")
     #keep calculated dbh from dendrometer file
-    Hwdens <- sqldf("SELECT census.*, wdens.WD FROM wdens JOIN census ON wdens.species = census.species")
+    #Hwdens <- sqldf("SELECT census.*, wdens.wood_density_g_m2 FROM wdens JOIN census ON wdens.species = census.species")
     #Hwdens$TagNo<-paste0(gsub(" ","",Hwdens$plotname),Hwdens$TagNo)
     
     #add generated heights
-    dend1$height_m<-Hwdens[match(dend1$tree_tag,Hwdens$tree_tag),"height_m"]
-    dend1$WD<-Hwdens[match(dend1$tree_tag,Hwdens$tree_tag),"WD"]
+    #dend1$height_m<-Hwdens[match(dend1$tree_tag,as.character(Hwdens$tree_tag)),"height"]
+    #dend1$WD<-Hwdens[match(dend1$tree_tag,Hwdens$tree_tag),"wood_density_g_m2"]
     
     #dend<-sqldf("SELECT dend1.*, height_m, WD, cocoa FROM Hwdens JOIN dend1 ON Hwdens.TagNo = tree_tag")
     #write.csv(dend, file="dendtest.csv")  
@@ -204,7 +204,6 @@ for(p in 1:length(trans)){
       return()
     }
     
-    
       # data cleaning
       dend1$dendrometer_reading_mm[which(dend1$dendrometer_reading_mm > 1000)] <- NaN
       
@@ -214,12 +213,56 @@ for(p in 1:length(trans)){
       
       # add first dbh measurement (cm) to dendrometer measurement (cm) = thisdbh
       dend1$dendrometer_reading_mm <- as.numeric(dend1$dendrometer_reading_mm) # Ignore error message. NA introduced by coercion is ok.
-      dend1$thisdbh_cm             <- dend1$dbh + (dend1$dendrometer_reading_mm/10)/pi
+      dend1$thisdbh_cm             <- dend1$baseline_dbh_mm/cf + (dend1$dendrometer_reading_mm/cf)/pi
+      
+      #include annual growth for relevant year
+      # census1.2<-census1 %>% filter(year==2015)
+      # census1.3<-census1 %>% filter(year==2016)
+      
+      # census1.2 <- census1.2 %>% mutate(max_date=as.Date(paste(year,month,day, sep="."),format="%Y.%m.%d"))
+      #census1.3 <- census1.3 %>% mutate(max_date=as.Date(paste(year,month,day, sep="."),format="%Y.%m.%d"))
+      
+      #dend1.1<- left_join(dend1 %>% filter(date<max(census1.2$max_date)),census1.2 %>% select(tree_tag,dbh) %>% rename(annual_dbh_cm=dbh),by="tree_tag") 
+      #dend1.1 <- dend1.1 %>% mutate(baseline_dbh_cm=baseline_dbh_mm/cf) %>% select(-baseline_dbh_mm)
+      #dend1.2<- left_join(dend1 %>% filter(date>=max(census1.2$max_date)&date<max(census1.3$max_date)),census1.3 %>% select(tree_tag,dbh) %>% rename(annual_dbh_cm=dbh),by="tree_tag") 
+      #dend1.2 <- left_join(dend1.2 %>% select(-baseline_dbh_mm),census1.2 %>% select(tree_tag,dbh) %>% rename(baseline_dbh_cm=dbh),by="tree_tag")
+      
+      #dend<-bind_rows(dend1.1,dend1.2)
+      
+      #calculate proportion of annual growth for each quarter, though not sure what to do with negative growth values?
+      #dend<- dend %>% group_by(tree_tag,date) %>% mutate(tot_growth=annual_dbh_cm-baseline_dbh_cm,q_growth=thisdbh_cm-baseline_dbh_cm) %>% 
+      #   mutate(prop_growth=q_growth/tot_growth) %>% mutate(prop_growth=replace(prop_growth,q_growth==0|tot_growth==0|tot_growth<0&q_growth>0,0)) %>% 
+      #  mutate(prop_growth=replace(prop_growth,tot_growth<0&q_growth<0,-(q_growth/tot_growth))) %>% 
+      # ungroup()
+      
+      #calculate number of trees with negative growth from census
+      #census_comp<-left_join(census1.2,census1.3 %>% select(tree_tag,dbh) %>% rename(annual_dbh_cm=dbh),by="tree_tag")
+      #census_comp<-census_comp %>% group_by(tree_tag) %>% mutate(tot_growth=annual_dbh_cm-dbh)
+      census_comp$dbh_class<-10
+      census_comp<- census_comp %>% mutate(dbh_class=replace(dbh_class,dbh>20&dbh<30,20)) %>% mutate(dbh_class=replace(dbh_class,dbh>30&dbh<40,30)) %>% 
+        mutate(dbh_class=replace(dbh_class,dbh>40,40))
+      
+      # census_comp<-census_comp %>% select(tot_growth,cocoa,dbh_class,year,month) %>% group_by(date,dbh_class,cocoa,year,month) %>% 
+      #   summarise(prop_growth=mean(prop_growth,na.rm=T),tot_growth=mean(tot_growth,na.rm=T),q_growth=mean(q_growth,na.rm=T))
+      
+      # %>% mutate(prop_growth=replace(prop_growth,tot_growth>0&q_growth<0,) 
+      
+      #add dbh class
+      dend$dbh_class<-10
+      dend<- dend %>% mutate(dbh_class=replace(dbh_class,baseline_dbh_cm>20&baseline_dbh_cm<30,20)) %>% mutate(dbh_class=replace(dbh_class,baseline_dbh_cm>30&baseline_dbh_cm<40,30)) %>% 
+        mutate(dbh_class=replace(dbh_class,baseline_dbh_cm>40,40))
+      
+      # dend_comp<-dend %>% select(plotname,date,prop_growth,tot_growth,q_growth,cocoa,dbh_class,year,month) %>% group_by(date,dbh_class,cocoa,year,month) %>% 
+      #  summarise(prop_growth=mean(prop_growth,na.rm=T),tot_growth=mean(tot_growth,na.rm=T),q_growth=mean(q_growth,na.rm=T))
+        # dend_comp.sd <-dend %>% select(plotname,date,prop_growth,tot_growth,q_growth,cocoa,dbh_class,year,month) %>% group_by(date,dbh_class,cocoa,year,month) %>% 
+      #   summarise(prop_growth.sd=sd(prop_growth,na.rm=T),tot_growth.sd=sd(tot_growth,na.rm=T),q_growth.sd=sd(q_growth,na.rm=T),nobs=n())
+      
       # Error estimates TO DO. Error estimated as diax1er <- (diax1*pi + er)/pi in matlab code. Where diax1 <- (diameterlA[tree_ind]*pi + dendroallA[[tree_ind]]/10)/pi
       
-      #create relationship between dbh and growth rate for each monitoring period
-      sf.eqn<- dend1 %>% select(dbh_first_date,date,dendrometer_reading_mm,dbh,cocoa) %>% group_by(date,cocoa) %>% filter(dbh_first_date!=date) %>%
-        summarise(intercept=coefficients(lm(dendrometer_reading_mm/10/pi~dbh))[1],slope=coefficients(lm(dendrometer_reading_mm/10/pi~dbh))[2],r.squared=summary(lm(dendrometer_reading_mm/10/pi~dbh))$adj.r.squared)
+      #create relationship between dbh and proportional growth rate for each monitoring period
+      #sf.eqn<- dend %>% select(dbh_first_date,date,prop_growth,cocoa,baseline_dbh_cm) %>% group_by(date,cocoa) %>% filter(dbh_first_date!=date) %>%
+      #  summarise(intercept=coefficients(lm(prop_growth~baseline_dbh_cm))[1],slope=coefficients(lm(prop_growth~baseline_dbh_cm))[2],r.squared=summary(lm(prop_growth~baseline_dbh_cm))$adj.r.squared) %>% 
+      # ungroup()
       
       #write.csv(sf.eqn,"/users/alex/Documents/Research/Africa/ECOLIMITS/Codes/Kakum.datacleaning/scaling.fcn.test.csv")
       #estimate increase in stem biomass using above relationship
@@ -230,9 +273,9 @@ for(p in 1:length(trans)){
     for (ii in 1:length(dend1$tree_tag)) {  
       thistree <- which(dend1$tree_tag == dend1$tree_tag[ii] & dend1$year == dend1$year[ii] & dend1$month == dend1$month[ii] & dend1$day == dend1$day[ii])     
       dbh_tree <- dend1$thisdbh_cm[thistree]
-      dbh_orig <- dend1$dbh[thistree]/cf*pi
-      den_tree <- dend1$WD[thistree]
-      h_tree   <- dend1$height_m[thistree]
+      dbh_orig <- dend1$baseline_dbh_mm[thistree]/cf
+      den_tree <- dend1$wood_density_g_m2[thistree]
+      h_tree   <- dend1$tree_height_m[thistree]
       
       # this uses allometric equations from allometricEquations.R
       
@@ -259,6 +302,42 @@ for(p in 1:length(trans)){
       dend1$agCdiff[ii] <-  dend1$agC[ii]-(bm1)*(1/(2.1097*1000))
     }
     
+      #remove NAs from dend
+      dend1<-dend1[!is.na(dend1$dendrometer_reading_mm),]
+      
+      #do again for census
+      for (ii in 1:length(census1$tree_tag)) {  
+        thistree <- which(census1$tree_tag == census1$tree_tag[ii] & census1$year == census1$year[ii] & census1$month == census1$month[ii] & census1$day == census1$day[ii])     
+        dbh_tree <- census1$dbh[thistree]
+        #dbh_orig <- census1$dbh[thistree]
+        den_tree <- census1$wood_density_g_m2[thistree]
+        h_tree   <- census1$height_m[thistree]
+        
+        # this uses allometric equations from allometricEquations.R
+        
+        if (allometrix == 2) {
+          bm <- Chave2005_dry(diax=dbh_tree, density=den_tree, height=h_tree)
+          #bm1<- Chave2005_dry(diax=dbh_orig, density=den_tree, height=h_tree)
+        } else if (allometrix == 3) {
+          bm <- Chave2005_moist(diax=dbh_tree, density=den_tree, height=h_tree)
+          #bm1 <- Chave2005_moist(diax=dbh_orig, density=den_tree, height=h_tree)
+        } else if (allometrix == 4) {
+          bm <- Chave2005_wet(diax=dbh_tree, density=den_tree, height=h_tree)
+          #bm1 <- Chave2005_wet(diax=dbh_orig, density=den_tree, height=h_tree)
+        } else if (allometrix == 5) {
+          bm <- Chave2014(diax=dbh_tree, density=den_tree, height=h_tree)
+          #bm1 <- Chave2014(diax=dbh_orig, density=den_tree, height=h_tree)
+        }
+        
+        ## TO DO ## error treatment remains to be done!
+        
+        # Unit conversions 
+        
+        census1$agC[ii] <- (bm)*(1/(2.1097*1000)) # convert kg to Mg=1/1000=10 and convert to carbon = 47.8% (ADD REF!! Txx et al?)
+        census1$bm_kg[ii] <- (bm)
+        #dend1$agCdiff[ii] <-  dend1$agC[ii]-(bm1)*(1/(2.1097*1000))
+      }
+      
       #remove NAs from dend
       dend1<-dend1[!is.na(dend1$dendrometer_reading_mm),]
       
